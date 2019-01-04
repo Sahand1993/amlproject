@@ -1,9 +1,19 @@
 import numpy as np
 import math
 
-def read_data(file):
-	"""reads text file and creates matrix with data"""
-	return null
+def read_data(filename, d=18, n=38):
+	""" reads text file and creates matrix with data
+		input: file name and matrix dimensions
+		output: (transposed) matrix with data as column vectors
+	"""
+	f = open(filename)
+	matrix = np.zeros([n,d])
+
+	for i in range(n):
+		data_point = np.asarray([int(s) for s in f.readline().split()])
+		matrix[i] = data_point
+
+	return np.transpose(matrix)
 
 def remove_data(T):
 	"""removes 20 procent of data randomly"""
@@ -30,6 +40,9 @@ def calc_mean_T(T_missing):
 
 def EM(T_missing, M):
 	"""iteratively calculates W and sigma, treat missing data as latent variables"""
+	
+	return null
+
 	T = T_missing
 	D = T.shape()[1]
 	W_init = np.zeros((D, M))
@@ -40,17 +53,7 @@ def EM(T_missing, M):
 	expected_X = np.matmul(np.matmul(M_mat_inverse, np.transpose(W)) , 
 							(T.transpose() - mu).transpose())
 
-
-
-
-	return null
-
 def projection(W, sigma):
 	"""equation 12.49 Bishop, calculates the expected value of the latent variable 
 	returns 2xN-matrix with projected data"""
 	return null
-
-def julias_function(param):
-	return 5
-
-	
