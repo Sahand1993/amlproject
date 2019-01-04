@@ -4,6 +4,7 @@ def read_data(file):
 
 def remove_data(T):
 	"""removes 20 procent of data randomly"""
+	"""extra testkommentar"""
 	return null
 
 def EM(T_missing):
