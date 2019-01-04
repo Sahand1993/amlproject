@@ -24,7 +24,7 @@ def calc_mean_T(T_missing):
 	T = T_missing
 	D = T.shape[0]
 	N = T.shape[1]
-	mean = np.zeros((D, 1))
+	mean = np.zeros(D)
 	for i in range(0, D):
 		mean_i = 0
 		missing_counter = 0
