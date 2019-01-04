@@ -17,5 +17,5 @@ def projection(W, sigma):
 	return null
 
 def julias_function(param):
-	return param
+	return 2
 	
