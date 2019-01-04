@@ -15,3 +15,6 @@ def projection(W, sigma):
 	returns 2xN-matrix with projected data"""
 	return null
 
+def julias_function(param):
+	return param
+	
