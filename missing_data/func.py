@@ -40,18 +40,52 @@ def calc_mean_T(T_missing):
 
 def EM(T_missing, M):
 	"""iteratively calculates W and sigma, treat missing data as latent variables"""
-	
 	return null
 
 	T = T_missing
+	T_boole = isnan(T)
 	D = T.shape()[1]
 	W_init = np.zeros((D, M))
 	sigma2 = 1
 	mu = calc_mean_T(T)
-	M_mat = np.matmul(numpy.transpose(W), W) + sigma2*np.eye(M, M)
+	D = T.shape()[1]
+	mu = calc_mean_T(T)
+	data_is_missing = np.any(T_boole)
+
+	if data_is_missing:
+		t_list = []
+		mu_list = []
+		for i in range(0, N):
+			t_i_missing = T[:, i]
+			nan_indices = []
+			for j in range(0, D):
+				if np.isnan(T[i, j]):
+					nan_indices.append(j)
+			t_i_removed = np.delete(t_i_missing, nan_indices)
+			mu_i_removed = np.delete(mu, nan_indices)
+			t_list.append(t_i_removed)
+			mu_list.append(mu_i_removed)
+	else:
+		t_list = []
+		mu_list = []
+		for i in range(0, N):
+			t_list.append(T[:, i])
+			mu_list.append(mu)
+	
+	W_init = np.zeros((D, M))
+	sigma2 = 1
+
+	M_mat = np.matmul(numpy.transpose(W), W) + sigma2*np.eye(M)
 	M_mat_inverse = np.inverse(M_mat)
-	expected_X = np.matmul(np.matmul(M_mat_inverse, np.transpose(W)) , 
-							(T.transpose() - mu).transpose())
+	M_inv_W_T = np.matmul(M_mat_inverse, np.transpose(W))
+	expected_X = np.zeros((M, N))
+	for i in range(0, N):
+		expected_X[:, i] = np.matmul( M_inv_W_T, t_list[i]-mu_list[i])
+	expected_XX = np.zeros((M, M, N))
+	for i in range(0, N):
+		expected_XX[:, :, i] = sigma2*M_mat_inverse + np.matmul(expected_X[i], np.transpose(expected_X[i]))
+
+
 
 def projection(W, sigma):
 	"""equation 12.49 Bishop, calculates the expected value of the latent variable 
