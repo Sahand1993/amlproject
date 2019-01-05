@@ -71,7 +71,7 @@ class PCAModel(object):
 		"""
 		sample_cov_matrix = np.zeros([self.data_dimensions, self.data_dimensions])
 		for responsibility, t in zip(responsibilities, self.data):
-			self.sample_cov_matrix += responsibility * np.matmul(t - mu, (t - mu).T) # TODO: Check that orientations are correct
+			sample_cov_matrix += responsibility * np.matmul(t - mu, (t - mu).T) # TODO: Check that orientations are correct
 		sample_cov_matrix /= pi * len(self.data)
 
 		return sample_cov_matrix
