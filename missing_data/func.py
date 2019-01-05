@@ -12,20 +12,26 @@ def read_data(filename, d=18, n=38):
     for i in range(n):
         data_point = np.asarray([int(s) for s in f.readline().split()])
         matrix[i] = data_point
-
     return np.transpose(matrix)
 
-def remove_data(T, num_rmv=8):
-    """removes 20 procent of data randomly"""
-    """extra testkommentar"""
+def remove_data(T, num_rmv=136):
+    """ removes num_rmv number of data point elements randomly
+        input: uncorrupted matrix 
+        output: corrupted data matrix with num_rmv random elements set to NaN
+    """
     D = T.shape[0]
     N = T.shape[1]
-    arr = T[0]
-    corrupting = np.ones(N)
+    corrupting = np.ones(N*D)
     corrupting[0:num_rmv] = np.nan
     np.random.shuffle(corrupting)
-    prod = arr*corrupting
-    return prod
+
+    count = 0 
+    for i in range(D):
+        for j in range(N):
+            T[i][j] = T[i][j]*corrupting[count]
+            count += 1
+
+    return T
 
 def calc_mean_T(T_missing):
     T = T_missing
