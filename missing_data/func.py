@@ -50,7 +50,6 @@ def calc_mean_T(T_missing):
         mean[i] = mean_i/(N-missing_counter)
     return np.transpose(mean)
 
-<<<<<<< HEAD
 
 def EM_v1(T, M):
     """ T is 18x38 
@@ -128,23 +127,10 @@ def conv_calc(T, mu, sig2, E_X, E_XX, W):
     return L_c
 
 
-def EM(T_missing, M):
-	"""iteratively calculates W and sigma, treat missing data as latent variables"""
-	return null
-
-	T = T_missing
-	T_boole = isnan(T)
-	D = T.shape()[1]
-	W_init = np.zeros((D, M))
-	sigma2 = 1
-	mu = calc_mean_T(T)
-	D = T.shape()[1]
-=======
 def get_t_and_mu(T, D):
 	T_boole = np.isnan(T)
 	N = T.shape[1]
 	print("N"+str(N))
->>>>>>> fe26439d2bdba7a802b04cd22c54dd3d8816d6eb
 	mu = calc_mean_T(T)
 	data_is_missing = np.any(T_boole)
 	if data_is_missing:
