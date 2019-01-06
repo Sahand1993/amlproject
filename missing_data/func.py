@@ -51,6 +51,82 @@ def calc_mean_T(T_missing):
     return mean
 
 
+def EM_v1(T, M):
+    """ T is 18x38 
+    """
+    #declare variables&constants
+    L_c = 0     #measurement of convergence
+    T_bool = np.isnan(T)   
+    data_is_missing = np.any(T_bool)
+    D = T.shape[0]
+    N = T.shape[1]
+    mu = calc_mean_T(T)
+    sig2_init = 1
+    sig2_current = sig2_init
+    W_init = np.ones([D,M])
+    W_current = W_init
+    M_mat = np.dot(W_init.T, W_init) + sig2_init*np.eye(M)
+    M_mat_inv = np.linalg.inv(M_mat)
+    t_list = []
+    mu_list = []
+    E_X = np.zeros([N, M])
+    E_XX = np.zeros([N, M, M])
+    mean_diff = np.zeros([D, N])
+    # calculate expected values for x_n and x_n * x_n.T
+    if data_is_missing:
+        print("data is missing!")
+
+
+    else:
+        print("data is not missing :D ")
+        for i in range(N):
+            diff = T[:,i] - mu
+            mean_diff[:,i] = diff
+            #diff = diff.reshape(D,1) 
+            E_x_n = np.dot(M_mat_inv, np.dot(W_current.T, diff))
+            E_X[i,:] = E_x_n
+            E_xx_n = sig2_current*M_mat_inv + np.dot(E_x_n, E_x_n.T)
+            E_XX[i,:,:] = E_xx_n
+
+    L_c = conv_calc(T, mu, sig2_current, E_X, E_XX, W_current)
+    #calcuclate convergence measurement L_c
+    """
+    for i in range(N):
+        term_1 = 0.5 * D * np.log(sig2_current)
+        term_2 = 0.5 * np.trace(E_XX[i])
+        term_3 = 0.5 * 1/sig2_current * np.dot(mean_diff[:,i].T, mean_diff[:,i])
+        term_4 = -1/sig2_current * np.dot(E_X[i,:].T, np.dot(W_current.T, mean_diff[:,i]))
+        term_5 = 0.5*sig2_current * np.trace(np.dot(W_current.T, np.dot(W_current, E_XX[i])))
+        L_c += term_1 + term_2 + term_3 + term_4 + term_5
+    L_c = -L_c
+    """
+    print(L_c)
+
+
+def conv_calc(T, mu, sig2, E_X, E_XX, W):
+    """ calculates convergence float L_c
+        input: data T, mean values mu, variance sig2, expected latent values E_X, expected latent values product E_XX, projection matrix W
+        output: L_c value
+    """
+    L_c = 0
+    N = T.shape[1]
+    D = T.shape[0]
+
+    for i in range(N):
+        t_mu_diff = T[:,i] - mu
+        term_1 = 0.5 * D * np.log(sig2)
+        term_2 = 0.5 * np.trace(E_XX[i])
+        term_3 = 0.5 * 1/sig2 * np.dot(t_mu_diff.T, t_mu_diff)
+        term_4 = -1/sig2 * np.dot(E_X[i,:].T, np.dot(W.T, t_mu_diff))
+        term_5 = 0.5*sig2 * np.trace(np.dot(W.T, np.dot(W, E_XX[i])))
+        
+        L_c += term_1 + term_2 + term_3 + term_4 + term_5
+
+    L_c = -L_c
+
+    return L_c
+
+
 def EM(T_missing, M):
 	"""iteratively calculates W and sigma, treat missing data as latent variables"""
 	return null
