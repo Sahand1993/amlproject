@@ -1,5 +1,11 @@
 import numpy as np
 
+def normal_pdf(x, mean, cov_det, cov_inv):
+	exp = np.exp(np.matmul(np.matmul((x - mean).T, cov_inv), x - mean))
+	out = exp / (2 * np.pi)**(len(x) / 2) / np.sqrt(cov_det)
+	return out
+
+
 class PCAModel(object):
 
 	def __init__(self, mixture):
@@ -40,7 +46,7 @@ class PCAModel(object):
 		"""
 		return np.mean(resps)
 
-	def calc_mu(self, resps, data):
+	def set_mean(self, resps, data):
 		"""
 		Calculates the mean of a certain PCA model mu_i = \sum_{i=1}^N R_{ni} * t_n / ( \sum_{i=1}^N R_{ni} )
 		in Tipping & Bishop 2006 (equation 23).
@@ -54,7 +60,8 @@ class PCAModel(object):
 
 		:return:
 		"""
-		return np.sum(resps * data) / np.sum(resps)
+		self.mean = np.sum(resps * data) / np.sum(resps)
+		return self.mean
 
 	def calc_sample_cov_matrix(self, resps, mu, pi):
 		"""
@@ -142,8 +149,17 @@ class PCAModel(object):
 		var = np.sum(np.diag(S - matrix_prod)) / self.mixture.data_dimensions
 		return var
 
-	def calc_C_inv(self):
-		pass
+	def set_C_inv(self, W, M_inv, var):
+		C_inv = np.diag(np.ones(self.mixture.data_dimensions))
+		C_inv -= np.matmul(np.matmul(W, M_inv), W.T)
+		C_inv /= var
+		self.C_inv = C_inv
+		return C_inv
+
+	def set_C_det(self, C_inv):
+		C = np.linalg.inv(C_inv)
+		self.C_det = np.linalg.det(C)
+		return self.C_det
 
 	def calc_prob_data(self, data_vector):
 		"""
@@ -158,7 +174,7 @@ class PCAModel(object):
 		:return: p(t)
 		:type return: float
 		"""
-
+		return normal_pdf(data_vector, self.mean, self.C_det, self.C_inv)
 
 
 class PCAMixture(object):
