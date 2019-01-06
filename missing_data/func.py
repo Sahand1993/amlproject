@@ -34,6 +34,7 @@ def remove_data(T, num_rmv=136):
     return T
 
 def calc_mean_T(T_missing):
+	""" calculates the mean of the data, if corrupted it gives mean anyway"""
     T = T_missing
     D = T.shape[0]
     N = T.shape[1]
@@ -102,7 +103,6 @@ def EM_v1(T, M):
     """
     print(L_c)
 
-
 def conv_calc(T, mu, sig2, E_X, E_XX, W):
     """ calculates convergence float L_c
         input: data T, mean values mu, variance sig2, expected latent values E_X, expected latent values product E_XX, projection matrix W
@@ -126,8 +126,10 @@ def conv_calc(T, mu, sig2, E_X, E_XX, W):
 
     return L_c
 
-
 def get_t_and_mu(T, D):
+	""" returns three lists, the first is a list of numpy column vectors of data points t
+	 with missing data removed. The second is a list of mean vectors corresponding to the list of t-vectors
+	 the third is a list of lists with the indices at which data were missing in the t-vectors"""
 	T_boole = np.isnan(T)
 	N = T.shape[1]
 	print("N"+str(N))
@@ -159,6 +161,7 @@ def get_t_and_mu(T, D):
 	return t_list, mu_list, nan_indices_list
 
 def calc_S(T, mu, t_list, mu_list, nan_list, D):
+	""" calculates the matrix S"""
 	N = len(t_list)
 	S = np.zeros((D, D))
 	for i in range(0, D):
@@ -176,6 +179,7 @@ def calc_S(T, mu, t_list, mu_list, nan_list, D):
 	return S/N
 
 def calc_W_new(S, W, M_inv, sigma2, M):
+	""" calculates the new version of W"""
 	A = np.matmul(S, W) #SW
 	B = sigma2*np.eye(M) # sigma2*I
 	C = np.matmul(M_inv, np.transpose(W)) #M^(-1)W^T
@@ -183,21 +187,25 @@ def calc_W_new(S, W, M_inv, sigma2, M):
 	return np.matmul(A, np.linalg.inv(B + np.matmul(C, D)))
 
 def calc_sigma2_new(S, W, W_new, M_inv, D):
+	""" calculates the new sigma^2 """
 	A = np.matmul(S, W) #SW
 	B = np.matmul(M_inv, np.transpose(W_new)) #M^(-1)W_new
 	return 1/D * np.trace(S - np.matmul(A, B))
 
 def calc_M_inv(W, sigma2, M):
+	""" calculates the inverse of the matrix M given W and sigma2"""
 	M_mat = np.matmul(np.transpose(W), W) + sigma2*np.eye(M)
 	M_mat_inverse = np.linalg.inv(M_mat)
 	return M_mat_inverse
 
 def calc_M_inv_W_T(W, sigma2, M):
+	""" does the calculation M^(-1)W^T, which is needed to calculate expected values of X"""
 	M_mat_inverse = calc_M_inv(W, sigma2, M)
 	M_inv_W_T = np.matmul(M_mat_inverse, np.transpose(W))
 	return M_inv_W_T
 
 def calc_expected_X(M_inv_W_T, t_list, mu_list, M):
+	""" calculates the current projections on the principas subspace (the latent variables"""
 	N = len(t_list)
 	expected_X = np.zeros((M, N))
 	for i in range(0, N):
@@ -207,6 +215,7 @@ def calc_expected_X(M_inv_W_T, t_list, mu_list, M):
 	return expected_X
 
 def calc_expected_XX(expected_X, sigma2, M_inv):
+	""" calculates expression 29 in Tipping Bishop 1999"""
 	expected_XX = np.zeros((M, M, N))
 	for i in range(0, N):
 		expected_XX[:, :, i] = sigma2*M_inv + np.matmul(expected_X[i], np.transpose(expected_X[i]))
