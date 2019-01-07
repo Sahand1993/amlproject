@@ -1,0 +1,2 @@
+INITIAL_VAR = 0.5
+ITERS = 10
