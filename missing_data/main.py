@@ -2,11 +2,15 @@ from func import *
 import matplotlib.pyplot as plt
 
 np.random.seed(1)
-op
+
 f = '../dataset/tobomovirus.txt'
 uncorrupted_data = read_data(f)
 corrupted_data = remove_data(uncorrupted_data)
 M = 2
+EM_v1(corrupted_data, M)
+
+
+"""
 D = uncorrupted_data[:, 1]
 W, sigma2 = EM(corrupted_data, M)
 
@@ -18,4 +22,4 @@ expected_X = calc_expected_X(M_inv_W_T, t_list, mu_list, M)
 
 plt.scatter(expected_X[0, :], expected_X[1, :])
 plt.show()
-
+"""
