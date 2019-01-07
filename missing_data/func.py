@@ -69,6 +69,7 @@ def EM_v1(T, M):
     M_mat = np.dot(W_init.T, W_init) + sig2_init*np.eye(M)
     M_mat_inv = np.linalg.inv(M_mat)
     t_list, mu_list, nan_list = get_t_and_mu(T, D) 
+    diff_list = []
     #print(t_list[0])
     #print(mu_list[0])
     #print(nan_list[0])
@@ -81,12 +82,20 @@ def EM_v1(T, M):
         print("data is missing!")
         for i in range(N):
             diff = t_list[i] - mu_list[i]
-                       
-
+            diff_list.append(diff)
+            W_i = W_list[i]
+            M_inv = calc_M_inv(W_i, sig2_current, M)
+            E_x_n = np.dot(M_inv, np.dot(W_i.T, diff))
+            E_xx_n = sig2_current*M_inv + np.dot(E_x_n, E_x_n.T)
+            E_X[:,i] = E_x_n
+            E_XX[i,:,:] = E_xx_n 
+            #print(E_XX_n)
+            #print(E_x_n)
     else:
         print("data is not missing :D ")
         for i in range(N):
             diff = T[:,i] - mu
+            diff_list.append(diff)
             #mean_diff[:,i] = diff
             #diff = diff.reshape(D,1) 
             E_x_n = np.dot(M_mat_inv, np.dot(W_current.T, diff))
@@ -95,11 +104,12 @@ def EM_v1(T, M):
             E_XX[i,:,:] = E_xx_n
 
     #calcuclate convergence measurement L_c
-    L_c = conv_calc(T, mu, sig2_current, E_X, E_XX, W_current)
+    L_c = conv_calc(T, mu, sig2_current, E_X, E_XX, W_current, W_list, diff_list)
 
-    print(L_c)
 
-def conv_calc(T, mu, sig2, E_X, E_XX, W):
+    print("lc is", L_c)
+
+def conv_calc(T, mu, sig2, E_X, E_XX, W, W_list, diff_list):
     """ calculates convergence float L_c
         input: data T, mean values mu, variance sig2, expected latent values E_X, expected latent values product E_XX, projection matrix W
         output: L_c value
@@ -109,12 +119,12 @@ def conv_calc(T, mu, sig2, E_X, E_XX, W):
     D = T.shape[0]
 
     for i in range(N):
-        t_mu_diff = T[:,i] - mu
+        #t_mu_diff = T[:,i] - mu
         term_1 = 0.5 * D * np.log(sig2)
         term_2 = 0.5 * np.trace(E_XX[i])
-        term_3 = 0.5 * 1/sig2 * np.dot(t_mu_diff.T, t_mu_diff)
-        term_4 = -1/sig2 * np.dot(E_X[:,i].T, np.dot(W.T, t_mu_diff))
-        term_5 = 0.5*sig2 * np.trace(np.dot(W.T, np.dot(W, E_XX[i])))
+        term_3 = 0.5 * 1/sig2 * np.dot(diff_list[i].T, diff_list[i])
+        term_4 = -1/sig2 * np.dot(E_X[:,i].T, np.dot(W_list[i].T, diff_list[i]))
+        term_5 = 0.5*sig2 * np.trace(np.dot(W_list[i].T, np.dot(W_list[i], E_XX[i])))
         
         L_c += term_1 + term_2 + term_3 + term_4 + term_5
 

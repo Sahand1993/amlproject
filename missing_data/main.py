@@ -5,9 +5,9 @@ np.random.seed(1)
 
 f = '../dataset/tobomovirus.txt'
 uncorrupted_data = read_data(f)
-corrupted_data = remove_data(uncorrupted_data)
+#corrupted_data = remove_data(uncorrupted_data)
 M = 2
-EM_v1(corrupted_data, M)
+EM_v1(uncorrupted_data, M)
 
 
 """
