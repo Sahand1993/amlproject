@@ -35,7 +35,6 @@ def remove_data(T, num_rmv=136):
     return T
 
 def calc_mean_T(T_missing):
-<<<<<<< HEAD
     """ calculates the mean of the data, if corrupted it gives mean anyway"""
     T = T_missing
     D = T.shape[0]
@@ -46,38 +45,20 @@ def calc_mean_T(T_missing):
         missing_counter = 0
         for j in range(0, N):
             t = T[i, j]
-            if math.isnan(t):
+            #math.isnan?
+            if np.isnan(t):
                 missing_counter += 1
             else:
                 mean_i +=t
         mean[i] = mean_i/(N-missing_counter)
     return np.transpose(mean)
 
-=======
-	""" calculates the mean of the data, if corrupted it gives mean anyway"""
-	T = T_missing
-	D = T.shape[0]
-	N = T.shape[1]
-	mean = np.zeros(D)
-	for i in range(0, D):
-	    mean_i = 0
-	    missing_counter = 0
-	    for j in range(0, N):
-	        t = T[i, j]
-	        if np.isnan(t):
-	            missing_counter += 1
-	        else:
-	            mean_i +=t
-	    mean[i] = mean_i/(N-missing_counter)
-	return np.transpose(mean)
->>>>>>> ebe1a28430489426f326f66bb97327eed2f4d9c7
-
 def EM_v1(T, M):
     """ T is 18x38 
     """
     #declare variables&constants
     L_c = 0     #measurement of convergence
-    max_iter = 100
+    max_iter = 10
     iter_count = 0
     T_bool = np.isnan(T)   
     data_is_missing = np.any(T_bool)
@@ -91,11 +72,11 @@ def EM_v1(T, M):
     M_mat_inv = np.linalg.inv(M_mat)
     t_list, mu_list, nan_list = get_t_and_mu(T, D) 
     diff_list = []
-    print("before loop", sig2)
+
     while(iter_count < max_iter):
         iter_count += 1
         print("~~~~~~~~~~~~~~~~~~~ iteration ", iter_count, "~~~~~~~~~~~~~~~~~~~~~~")
-        print(L_c)
+        #print(L_c)
         L_c, E_X, E_XX = E_step(T, sig2, W, L_c, t_list, mu_list, nan_list, M)
         
         W_new, sig2_new = M_step(T, E_X, E_XX, mu, N, D ,M)
@@ -104,19 +85,17 @@ def EM_v1(T, M):
 
     return W, sig2
 
-def E_step(T, sig2_in, W_in, L_c, t_list, mu_list, nan_list, M):
+def E_step(T, sig2, W, L_c, t_list, mu_list, nan_list, M):
     T_bool = np.isnan(T)   
     data_is_missing = np.any(T_bool)
     D = T.shape[0]
     N = T.shape[1]
     mu = calc_mean_T(T)
     mu = mu.reshape([D, 1])
-    sig2_current = sig2_in
-    W_current = W_in
     diff_list = []
     E_X = np.zeros([M, N])
-    E_XX = np.zeros([N, M, M])
-    W_list = get_list_of_W(W_current, nan_list, N, D, M)
+    E_XX = np.zeros([N, M, M])  #update every iteration?
+    W_list = get_list_of_W(W, nan_list, N, D, M)
 
     # calculate expected values for x_n and x_n * x_n.T
     if data_is_missing:
@@ -125,9 +104,9 @@ def E_step(T, sig2_in, W_in, L_c, t_list, mu_list, nan_list, M):
             diff = t_list[i] - mu_list[i]
             diff_list.append(diff)
             W_i = W_list[i]
-            M_inv = calc_M_inv(W_i, sig2_current, M)
+            M_inv = calc_M_inv(W_i, sig2, M)
             E_x_n = np.dot(M_inv, np.dot(W_i.T, diff))
-            E_xx_n = sig2_current*M_inv + np.dot(E_x_n, E_x_n.T)
+            E_xx_n = sig2*M_inv + np.dot(E_x_n, E_x_n.T)
             E_X[:,i] = E_x_n
             E_XX[i,:,:] = E_xx_n 
 
@@ -136,14 +115,14 @@ def E_step(T, sig2_in, W_in, L_c, t_list, mu_list, nan_list, M):
         for i in range(N):
             diff = T[:,i] - mu
             diff_list.append(diff)
-            M_mat_inv = calc_M_inv(W_current, sig2_current, M) 
-            E_x_n = np.dot(M_mat_inv, np.dot(W_current.T, diff))
+            M_mat_inv = calc_M_inv(W, sig2, M) 
+            E_x_n = np.dot(M_mat_inv, np.dot(W.T, diff))
             E_X[:,i] = E_x_n
-            E_xx_n = sig2_current*M_mat_inv + np.dot(E_x_n, E_x_n.T)
+            E_xx_n = sig2*M_mat_inv + np.dot(E_x_n, E_x_n.T)
             E_XX[i,:,:] = E_xx_n
 
     #calcuclate convergence measurement L_c
-    L_c = conv_calc(T, mu, sig2_current, E_X, E_XX, W_current, W_list, diff_list)
+    L_c = conv_calc(T, mu, sig2, E_X, E_XX, W, W_list, diff_list)
 
     print("convergence float: ", L_c)
     return L_c, E_X, E_XX
@@ -213,13 +192,12 @@ def get_list_of_W(W_orig, nan_list, N, D, M):
     return W_list
 
 def get_t_and_mu(T, D):
-<<<<<<< HEAD
     """ returns three lists, the first is a list of numpy column vectors of data points t
      with missing data removed. The second is a list of mean vectors corresponding to the list of t-vectors
      the third is a list of lists with the indices at which data were missing in the t-vectors"""
     T_boole = np.isnan(T)
     N = T.shape[1]
-    print("N"+str(N))
+    #print("N"+str(N))
     mu = calc_mean_T(T)
     data_is_missing = np.any(T_boole)
     if data_is_missing:
@@ -277,77 +255,43 @@ def calc_sigma2_new(S, W, W_new, M_inv, D):
     """ calculates the new sigma^2 """
     A = np.matmul(S, W) #SW
     B = np.matmul(M_inv, np.transpose(W_new)) #M^(-1)W_new
+
     return 1/D * np.trace(S - np.matmul(A, B))
-=======
-	""" returns three lists, the first is a list of numpy column vectors of data points t
-	 with missing data removed. The second is a list of mean vectors corresponding to the list of t-vectors
-	 the third is a list of lists with the indices at which data were missing in the t-vectors"""
-	T_boole = np.isnan(T)
-	N = T.shape[1]
-	mu = calc_mean_T(T)
-	data_is_missing = np.any(T_boole)
-	if data_is_missing:
-		t_list = []
-		mu_list = []
-		nan_indices_list = N*[[]]
-		for i in range(0, N):
-			t_i_missing = T[:, i]
-			for j in range(0, D):
-				if np.isnan(T[j, i]):
-					copy = nan_indices_list[i].copy()
-					copy.append(j)
-					nan_indices_list[i] = copy
-			nan_indices = nan_indices_list[i]
-			t_i_removed = np.delete(t_i_missing, nan_indices)
-			mu_i_removed = np.delete(mu, nan_indices)
-			t_i_removed = np.reshape(t_i_removed, (t_i_removed.shape[0], 1))
-			mu_i_removed = np.reshape(mu_i_removed, (mu_i_removed.shape[0], 1))
-			t_list.append(t_i_removed)
-			mu_list.append(mu_i_removed)
-	else:
-		t_list = []
-		mu_list = []
-		nan_indices_list = N*[[]]
-		for i in range(0, N):
-			t_list.append(T[:, i])
-			mu_list.append(mu)
-	return t_list, mu_list, nan_indices_list
 
 def calc_S(T, mu, t_list, mu_list, nan_list, D):
-	""" calculates the matrix S"""
-	mu = mu.reshape(D, 1)
-	N = len(t_list)
-	S = np.zeros((D, D))
-	for i in range(0, D):
-		for j in range(0, N):
-			if np.isnan(T[i, j]):
-				T[i, j] = 0
-	for i in range(0, N):
-		t_i = T[:, i]
-		t_i = np.reshape(t_i, (D, 1))
-		mu_i = mu
-		diff = t_i-mu_i
-		mat = np.dot(diff, np.transpose(diff))
-		S += mat
-	S = S/(N*0.8/2)
-	return S
+    """ calculates the matrix S"""
+    mu = mu.reshape(D, 1)
+    N = len(t_list)
+    S = np.zeros((D, D))
+    for i in range(0, D):
+        for j in range(0, N):
+            if np.isnan(T[i, j]):
+                T[i, j] = 0
+    for i in range(0, N):
+        t_i = T[:, i]
+        t_i = np.reshape(t_i, (D, 1))
+        mu_i = mu
+        diff = t_i-mu_i
+        mat = np.dot(diff, np.transpose(diff))
+        S += mat
+    S = S/(N*0.8/2)
+    return S
 
 def calc_W_new(S, W, M_inv, sigma2, M):
-	""" calculates the new version of W"""
-	A = np.matmul(S, W) #SW
-	B = sigma2*np.eye(M) # sigma2*I
-	C = np.matmul(M_inv, np.transpose(W)) #M^(-1)W^T
-	return np.matmul(A, np.linalg.inv(B + np.matmul(C, A)))
+    """ calculates the new version of W"""
+    A = np.matmul(S, W) #SW
+    B = sigma2*np.eye(M) # sigma2*I
+    C = np.matmul(M_inv, np.transpose(W)) #M^(-1)W^T
+    return np.matmul(A, np.linalg.inv(B + np.matmul(C, A)))
 
 def calc_sigma2_new(S, W, W_new, M_inv_new, M_inv_old, D):
-	""" calculates the new sigma^2 """
-	A = np.matmul(S, W) #SW
-	B = np.matmul(M_inv_old, np.transpose(W_new)) #M^(-1)W_new^T
-	print(np.trace(S))
-	sigma2 = 1.0/D * np.trace(S - np.matmul(A, B))
-	print(sigma2)
-	return sigma2
->>>>>>> ebe1a28430489426f326f66bb97327eed2f4d9c7
+    """ calculates the new sigma^2 """
+    A = np.matmul(S, W) #SW
+    B = np.matmul(M_inv_old, np.transpose(W_new)) #M^(-1)W_new^T
+    #print(np.trace(S))
+    sigma2 = 1.0/D * np.trace(S - np.matmul(A, B))
+    #print(sigma2)
+    return sigma2
 
 def calc_M_inv(W, sigma2, M):
     """ calculates the inverse of the matrix M given W and sigma2"""
@@ -361,34 +305,32 @@ def calc_M_inv_W_T(W, sigma2, M):
     M_inv_W_T = np.matmul(M_mat_inverse, np.transpose(W))
     return M_inv_W_T
 
-<<<<<<< HEAD
 def calc_expected_X(M_inv_W_T, t_list, mu_list, M):
     """ calculates the current projections on the principas subspace (the latent variables"""
     N = len(t_list)
     expected_X = np.zeros((M, N))
     for i in range(0, N):
         x = np.matmul( M_inv_W_T, t_list[i]-mu_list[i])
-        print(x)
+        #print(x)
         expected_X[:, i] = x
     return expected_X
-=======
+
 def calc_W_from_nan_index(W, nan_list):
-	W = np.delete(W, nan_list, 0)
-	return W
+    W = np.delete(W, nan_list, 0)
+    return W
 
 def calc_expected_X(M_inv, W, t_list, mu_list, nan_list, M):
-	""" calculates the current projections on the principas subspace (the latent variables"""
-	N = len(t_list)
-	expected_X = np.zeros((M, N))
-	for i in range(0, N):
-		W_i = copy.deepcopy(W)
-		nan_i = nan_list[i]
-		W_i = calc_W_from_nan_index(W_i, nan_i)
-		M_inv_W_T = np.dot(M_inv, np.transpose(W_i))
-		x = np.dot( M_inv_W_T, t_list[i]-mu_list[i])
-		expected_X[:, i] = x.reshape(2)
-	return expected_X
->>>>>>> ebe1a28430489426f326f66bb97327eed2f4d9c7
+    """ calculates the current projections on the principas subspace (the latent variables"""
+    N = len(t_list)
+    expected_X = np.zeros((M, N))
+    for i in range(0, N):
+        W_i = copy.deepcopy(W)
+        nan_i = nan_list[i]
+        W_i = calc_W_from_nan_index(W_i, nan_i)
+        M_inv_W_T = np.dot(M_inv, np.transpose(W_i))
+        x = np.dot( M_inv_W_T, t_list[i]-mu_list[i])
+        expected_X[:, i] = x.reshape(2)
+    return expected_X
 
 def calc_expected_XX(expected_X, sigma2, M_inv):
     """ calculates expression 29 in Tipping Bishop 1999"""
@@ -398,9 +340,8 @@ def calc_expected_XX(expected_X, sigma2, M_inv):
     return expected_XX
 
 def EM(T_missing, M):
-<<<<<<< HEAD
     """iteratively calculates W and sigma, treat missing data as latent variables"""
-
+    """
     T = T_missing
     D = T.shape[0]
     W_init = np.zeros((D, M))
@@ -427,35 +368,30 @@ def EM(T_missing, M):
         counter+=136
 
     return W, sigma2
-
+    """
     
-=======
-	"""iteratively calculates W and sigma, treat missing data as latent variables"""
+    """iteratively calculates W and sigma, treat missing data as latent variables"""
 
-	T = T_missing
-	D = T.shape[0]
-	mu = calc_mean_T(T)
-	t_list, mu_list, nan_list = get_t_and_mu(T, D)
-	W = (np.random.rand(D, M) - 0.5) * 10
-	sigma2 = 1.0
-	S = calc_S(T, mu, t_list, mu_list, nan_list, D)
-	M_inv = calc_M_inv(W, sigma2, M)
-	repeat = True
-	max_iter = 1000
-	counter = 0
-	while counter < max_iter:
+    T = T_missing
+    D = T.shape[0]
+    mu = calc_mean_T(T)
+    t_list, mu_list, nan_list = get_t_and_mu(T, D)
+    W = (np.random.rand(D, M) - 0.5) * 10
+    sigma2 = 1.0
+    S = calc_S(T, mu, t_list, mu_list, nan_list, D)
+    M_inv = calc_M_inv(W, sigma2, M)
+    repeat = True
+    max_iter = 1000
+    counter = 0
+    while counter < max_iter:
 
-		W_new = calc_W_new(S, W, M_inv, sigma2, M)
-		M_inv_new = calc_M_inv(W_new, sigma2, M)
-		sigma2_new = calc_sigma2_new(S, W, W_new, M_inv_new, M_inv, D)
-		if abs(sigma2 - sigma2_new) < 0.001:
-			repeat = False
-		W = W_new
-		sigma2 = sigma2_new
-		M_inv = M_inv_new
-		counter+=1
-	return W, sigma2
-
-	
->>>>>>> ebe1a28430489426f326f66bb97327eed2f4d9c7
-
+        W_new = calc_W_new(S, W, M_inv, sigma2, M)
+        M_inv_new = calc_M_inv(W_new, sigma2, M)
+        sigma2_new = calc_sigma2_new(S, W, W_new, M_inv_new, M_inv, D)
+        if abs(sigma2 - sigma2_new) < 0.001:
+            repeat = False
+        W = W_new
+        sigma2 = sigma2_new
+        M_inv = M_inv_new
+        counter+=1
+    return W, sigma2
