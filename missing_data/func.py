@@ -57,29 +57,50 @@ def EM_v1(T, M):
     """
     #declare variables&constants
     L_c = 0     #measurement of convergence
+    max_iter = 100
+    iter_count = 0
     T_bool = np.isnan(T)   
     data_is_missing = np.any(T_bool)
     D = T.shape[0]
     N = T.shape[1]
     mu = calc_mean_T(T)
-    sig2_init = 1
-    sig2_current = sig2_init
-    W_init = np.ones([D,M])
-    W_current = W_init
-    M_mat = np.dot(W_init.T, W_init) + sig2_init*np.eye(M)
+    mu = mu.reshape([D, 1])
+    sig2 = 1
+    W = np.ones([D,M])
+    M_mat = np.dot(W.T, W) + sig2*np.eye(M)
     M_mat_inv = np.linalg.inv(M_mat)
     t_list, mu_list, nan_list = get_t_and_mu(T, D) 
     diff_list = []
-    #print(t_list[0])
-    #print(mu_list[0])
-    #print(nan_list[0])
+    print("before loop", sig2)
+    while(iter_count < max_iter):
+        iter_count += 1
+        print("~~~~~~~~~~~~~~~~~~~ iteration ", iter_count, "~~~~~~~~~~~~~~~~~~~~~~")
+        print(L_c)
+        L_c, E_X, E_XX = E_step(T, sig2, W, L_c, t_list, mu_list, nan_list, M)
+        
+        W_new, sig2_new = M_step(T, E_X, E_XX, mu, N, D ,M)
+        W = W_new
+        sig2 = sig2_new
+
+    return W, sig2
+
+def E_step(T, sig2_in, W_in, L_c, t_list, mu_list, nan_list, M):
+    T_bool = np.isnan(T)   
+    data_is_missing = np.any(T_bool)
+    D = T.shape[0]
+    N = T.shape[1]
+    mu = calc_mean_T(T)
+    mu = mu.reshape([D, 1])
+    sig2_current = sig2_in
+    W_current = W_in
+    diff_list = []
     E_X = np.zeros([M, N])
     E_XX = np.zeros([N, M, M])
     W_list = get_list_of_W(W_current, nan_list, N, D, M)
-    #mean_diff = np.zeros([D, N])
+
     # calculate expected values for x_n and x_n * x_n.T
     if data_is_missing:
-        print("data is missing!")
+        #print("data is missing!")
         for i in range(N):
             diff = t_list[i] - mu_list[i]
             diff_list.append(diff)
@@ -89,15 +110,13 @@ def EM_v1(T, M):
             E_xx_n = sig2_current*M_inv + np.dot(E_x_n, E_x_n.T)
             E_X[:,i] = E_x_n
             E_XX[i,:,:] = E_xx_n 
-            #print(E_XX_n)
-            #print(E_x_n)
+
     else:
-        print("data is not missing :D ")
+        #print("data is not missing :D ")
         for i in range(N):
             diff = T[:,i] - mu
             diff_list.append(diff)
-            #mean_diff[:,i] = diff
-            #diff = diff.reshape(D,1) 
+            M_mat_inv = calc_M_inv(W_current, sig2_current, M) 
             E_x_n = np.dot(M_mat_inv, np.dot(W_current.T, diff))
             E_X[:,i] = E_x_n
             E_xx_n = sig2_current*M_mat_inv + np.dot(E_x_n, E_x_n.T)
@@ -106,8 +125,35 @@ def EM_v1(T, M):
     #calcuclate convergence measurement L_c
     L_c = conv_calc(T, mu, sig2_current, E_X, E_XX, W_current, W_list, diff_list)
 
+    print("convergence float: ", L_c)
+    return L_c, E_X, E_XX
 
-    print("lc is", L_c)
+def M_step(T, E_X, E_XX, mu, N, D, M):
+    T_zeros = add_zeros(T, N, D)
+    W_new = np.zeros([D, M])
+    sig2_new = 0
+    for i in range(N):
+        E_x_n = E_X[:,i].reshape(M,1)
+        t_n = T_zeros[:,i].reshape(D,1)
+        t_mu_diff = t_n - mu
+        # for W
+        W_new += np.dot(np.dot(t_mu_diff, E_x_n.T), E_XX[i])
+        #and for sigma
+        sig2_new += np.linalg.norm(t_mu_diff) - 2 * np.dot(E_x_n.T, np.dot(W_new.T, t_mu_diff)) + np.trace(np.dot(E_XX[i], np.dot(W_new.T, W_new)))
+    sig2_new = sig2_new[0][0]/(N * D)
+    return W_new, sig2_new
+
+def add_zeros(T, N, D):
+    # np.nan_to_num()
+    #T_add = T
+    T_add = np.zeros([D,N])
+    for i in range(D):
+        for j in range(N):
+            if np.isnan(T[i][j]):
+                T_add[i][j] = 0
+            else:
+                T_add[i][j] = T[i][j]
+    return T_add
 
 def conv_calc(T, mu, sig2, E_X, E_XX, W, W_list, diff_list):
     """ calculates convergence float L_c
@@ -179,7 +225,6 @@ def get_t_and_mu(T, D):
             t_list.append(T[:, i])
             mu_list.append(mu)
     return t_list, mu_list, nan_indices_list
-
 
 def calc_S(T, mu, t_list, mu_list, nan_list, D):
     """ calculates the matrix S"""
