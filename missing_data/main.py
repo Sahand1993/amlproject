@@ -2,20 +2,6 @@ from func import *
 import matplotlib.pyplot as plt
 
 np.random.seed(1)
-<<<<<<< HEAD
-f = '../dataset/tobomovirus.txt'
-uncorrupted_data = read_data(f)
-corrupted_data = remove_data(uncorrupted_data)
-corrupted_data.flags.writeable = False
-M = 2
-W, sig = EM_v1(corrupted_data, M)
-
-"""
-
-D = uncorrupted_data[:, 1]
-M = 2
-W, sigma2 = EM(corrupted_data, M)
-=======
 
 f = '../dataset/tobomovirus.txt'
 uncorrupted_data = read_data(f)
@@ -24,9 +10,9 @@ corrupted_data_copy = corrupted_data.copy()
 M = 2
 N = uncorrupted_data[0, :].size
 D = uncorrupted_data[:, 1].size
->>>>>>> ebe1a28430489426f326f66bb97327eed2f4d9c7
 
 """corrupted"""
+
 W, sigma2 = EM(corrupted_data, M)
 M_inv = calc_M_inv(W, sigma2, M)
 t_list, mu_list, nan_list = get_t_and_mu(corrupted_data_copy, D)
@@ -40,6 +26,7 @@ fig1.savefig("projection_with_missing_data.pdf", bbox_inches='tight')
 
 
 """uncorrupted"""
+
 W, sigma2 = EM(uncorrupted_data, M)
 M_inv = calc_M_inv(W, sigma2, M)
 t_list, mu_list, nan_list = get_t_and_mu(uncorrupted_data, D)
@@ -51,5 +38,3 @@ for i in range(0, N):
 plt.show()
 fig2.savefig("projection_with_normal_data.pdf", bbox_inches='tight')
 
-
-"""
