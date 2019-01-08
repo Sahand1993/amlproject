@@ -90,7 +90,7 @@ class PCAModel(object):
 		for resp, t in zip(resps, self.mixture.data):
 			diff = t - self.mean
 			prod = np.outer(diff, diff)
-			sample_cov_matrix += resp * prod # TODO: Check that orientations are correct
+			sample_cov_matrix += resp * prod
 		sample_cov_matrix /= mixing_coeff * len(self.mixture.data)
 
 		self.S = sample_cov_matrix
@@ -131,7 +131,8 @@ class PCAModel(object):
 		right = np.matmul(right, self.S)
 		right = np.matmul(right, self.W)
 		len_diag = right.shape[0]
-		right += np.diag(np.ones(len_diag)) * self.var
+		right += np.eye(len_diag) * self.var
+		right = np.linalg.inv(right)
 
 		W = np.matmul(left, right)
 		self.W = W
@@ -157,8 +158,7 @@ class PCAModel(object):
 		matrix_prod = np.matmul(self.S, W_old)
 		matrix_prod = np.matmul(matrix_prod, M_inv_old)
 		matrix_prod = np.matmul(matrix_prod, self.W)
-		var = np.trace(self.S - matrix_prod) / self.mixture.data_dimensions
-		return var
+		self.var = np.trace(self.S - matrix_prod) / self.mixture.data_dimensions
 
 	def set_C_inv(self):
 		"""
