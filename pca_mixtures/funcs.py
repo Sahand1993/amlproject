@@ -2,8 +2,12 @@ import numpy as np
 from pca_mixtures.constants import *
 
 def normal_pdf(x, mean, cov_det, cov_inv):
-	exp = np.exp(np.matmul(np.matmul((x - mean).T, cov_inv), x - mean))
-	out = exp / (2 * np.pi)**(len(x) / 2) / np.sqrt(cov_det)
+	diff = x - mean
+	exponent = np.matmul(diff.T, cov_inv)
+	exponent = -np.dot(exponent, diff)
+	exp = np.exp(exponent)
+	normalizer = (2 * np.pi)**(len(x) / 2) * np.sqrt(cov_det)
+	out = exp / normalizer
 	return out
 
 
@@ -169,7 +173,6 @@ class PCAModel(object):
 		:return:
 		"""
 		C_inv = np.diag(np.ones(self.mixture.data_dimensions))
-		np.matmul(self.W, self.M_inv)
 		C_inv -= np.matmul(np.matmul(self.W, self.M_inv), self.W.T)
 		C_inv /= self.var
 		self.C_inv = C_inv
@@ -180,7 +183,9 @@ class PCAModel(object):
 		:param C_inv:
 		:return:
 		"""
-		C = np.linalg.inv(self.C_inv)
+		identity = self.var * np.eye(self.W.shape[0])
+		prod = np.matmul(self.W, self.W.T)
+		C =  identity + prod
 		self.C_det = np.linalg.det(C)
 
 	def calc_prob_data(self, data_vector):
@@ -294,7 +299,7 @@ class PCAMixture(object):
 
 	def set_W_of_models(self):
 		for model in self.models:
-			model.set_W() # TODO: Set arguments
+			model.set_W()
 
 	def set_var_of_models(self, old_Ws, old_M_invs):
 		for model, W_old, M_inv_old in zip(self.models, old_Ws, old_M_invs):
