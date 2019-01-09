@@ -138,10 +138,71 @@ class TestPCAModel(TestCase):
 		self.assertAlmostEqual(model.var, 1.02298850575)
 
 	def test_set_C_inv(self):
-		self.fail()
+		data = np.array([
+			[1, 3],
+			[1, 6]
+		])
+		M_inv = np.array([
+			[17, -7],
+			[-7, 9]
+		]) / 104
+		W = np.array([
+			[0, 0],
+			[104 / 87, 208 / 261]
+		])
+		var = 1 + 2/87
+		mixture = PCAMixture(data, 1, 2)
+		model = PCAModel(mixture, 2)
+		model.M_inv = M_inv
+		model.W = W
+		model.var = var
+
+		model.set_C_inv()
+
+		C_inv = np.array([
+			[1, 0],
+			[0, 19067 / 22707]
+		]) / var
+
+		res = np.isclose(model.C_inv, C_inv)
+		self.assertTrue(res.all())
 
 	def test_set_C_det(self):
-		self.fail()
+		data = np.array([
+			[1, 3],
+			[1, 6]
+		])
+		var = 2
+		W = np.array([
+			[2, 3],
+			[1, 0],
+			[2, 1]
+		])
+		mixture = PCAMixture(data, 1, 2)
+		model = PCAModel(mixture, 2)
+		model.var = var
+		model.W = W
+		model.set_C_det()
+		C_det = 136
+
+		self.assertAlmostEqual(model.C_det, C_det)
 
 	def test_calc_prob_data(self):
-		self.fail()
+		data = np.array([
+			[1, 3],
+			[1, 6]
+		])
+		mean = np.array([1, 5])
+		C_det = 0.75
+		C_inv = np.array([
+			[4, -2],
+			[-2, 4]
+		]) / 3
+		mixture = PCAMixture(data, 1, 2)
+		model = PCAModel(mixture, 2)
+		model.mean = mean
+		model.C_det = C_det
+		model.C_inv = C_inv
+		prob = model.calc_prob_data(data[0])
+		correct_prob = 0.00088726277
+		self.assertAlmostEqual(prob, correct_prob)
