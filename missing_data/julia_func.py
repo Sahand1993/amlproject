@@ -1,5 +1,5 @@
 import numpy as np
-from func.py import *
+from func import *
 
 def EM_v1(T, M):
     """ T is 18x38 
