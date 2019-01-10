@@ -32,7 +32,6 @@ t_list, mu_list, nan_list = get_t_and_mu(uncorrupted_data, D)
 expected_X = calc_expected_X(M_inv, W, t_list, mu_list, nan_list, M)
 fig2, ax2 = plt.subplots()
 plt.scatter(expected_X[0, :], expected_X[1, :])
-print(sigma2)
 for i in range(0, N):
     ax2.annotate(str(i), (expected_X[0, i], expected_X[1, i]))
 plt.show()

@@ -105,7 +105,6 @@ def get_t_and_mu(T, D):
      the third is a list of lists with the indices at which data were missing in the t-vectors"""
     T_boole = np.isnan(T)
     N = T.shape[1]
-    #print("N"+str(N))
     mu = calc_mean_T(T)
     data_is_missing = np.any(T_boole)
     if data_is_missing:
@@ -114,13 +113,16 @@ def get_t_and_mu(T, D):
         nan_indices_list = N*[[]]
         for i in range(0, N):
             t_i_missing = T[:, i]
+            print(t_i_missing)
             for j in range(0, D):
                 if np.isnan(T[j, i]):
                     copy = nan_indices_list[i].copy()
                     copy.append(j)
                     nan_indices_list[i] = copy
             nan_indices = nan_indices_list[i]
+            print(nan_indices)
             t_i_removed = np.delete(t_i_missing, nan_indices)
+            print(t_i_removed)
             mu_i_removed = np.delete(mu, nan_indices)
             t_list.append(t_i_removed)
             mu_list.append(mu_i_removed)
@@ -211,16 +213,6 @@ def calc_M_inv_W_T(W, sigma2, M):
     M_inv_W_T = np.matmul(M_mat_inverse, np.transpose(W))
     return M_inv_W_T
 
-def calc_expected_X(M_inv_W_T, t_list, mu_list, M):
-    """ calculates the current projections on the principas subspace (the latent variables"""
-    N = len(t_list)
-    expected_X = np.zeros((M, N))
-    for i in range(0, N):
-        x = np.matmul( M_inv_W_T, t_list[i]-mu_list[i])
-        #print(x)
-        expected_X[:, i] = x
-    return expected_X
-
 def calc_W_from_nan_index(W, nan_list):
     W = np.delete(W, nan_list, 0)
     return W
@@ -260,7 +252,7 @@ def EM(T_missing, M, probabalistic):
 	S = calc_S(T, mu, t_list, mu_list, nan_list, D)
 	M_inv = calc_M_inv(W, sigma2, M)
 	repeat = True
-	max_iter = 1000
+	max_iter = 100
 	counter = 0
 	while counter < max_iter:
 		W_new = calc_W_new(S, W, M_inv, sigma2, M)
