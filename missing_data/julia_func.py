@@ -1,8 +1,6 @@
 import numpy as np
 import copy
 
-def test_func():
-    print("from julias file")
 def read_data(filename, d=18, n=38):
     """ reads text file and creates matrix with data
         input: file name and matrix dimensions
