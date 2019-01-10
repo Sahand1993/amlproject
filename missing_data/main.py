@@ -1,4 +1,5 @@
 from func import *
+from julia_func import *
 import matplotlib.pyplot as plt
 
 np.random.seed(1)
@@ -28,7 +29,7 @@ plt.show()
 """
 
 """uncorrupted"""
-
+test_func()
 W, sigma2 = EM_v1(uncorrupted_data, M)
 M_inv = calc_M_inv(W, sigma2, M)
 t_list, mu_list, nan_list = get_t_and_mu(uncorrupted_data, D)
