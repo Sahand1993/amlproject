@@ -1,5 +1,5 @@
 import numpy as np
-from constants import *
+from pca_mixtures.constants import *
 
 def normal_pdf(x, mean, cov_det, cov_inv):
 	exp = np.exp(np.matmul(np.matmul((x - mean).T, cov_inv), x - mean))
@@ -18,7 +18,7 @@ class PCAModel(object):
 		"""
 		self.mixture = mixture
 
-		self.resps = None
+		#self.resps = None
 		self.mean = np.zeros(mixture.data_dimensions)
 		self.W = np.zeros((mixture.data_dimensions, latent_dim))
 		self.M_inv = None
@@ -45,7 +45,7 @@ class PCAModel(object):
 		"""
 		return prob_t_given_i * pi_i / prob_t
 
-	def calc_mixing_coeff(self):
+	def calc_mixing_coeff(self, resps):
 		"""
 		Calculates pi_i = \sum_{i=1}^N R_{ni} in Tipping & Bishop 2006 (equation 22).
 
@@ -54,9 +54,9 @@ class PCAModel(object):
 
 		:return: pi_i
 		"""
-		return np.mean(self.resps)
+		return np.mean(resps)
 
-	def set_mean(self):
+	def set_mean(self, resps):
 		"""
 		Calculates the mean of a certain PCA model mu_i = \sum_{i=1}^N R_{ni} * t_n / ( \sum_{i=1}^N R_{ni} )
 		in Tipping & Bishop 2006 (equation 23).
@@ -70,12 +70,9 @@ class PCAModel(object):
 
 		:return:
 		"""
-		print(self.resps)
-		print(np.matmul(self.resps, self.mixture.data))
-		self.mean = np.sum(self.resps * self.mixture.data) / np.sum(self.resps)
-		return self.mean
+		self.mean = np.matmul(resps, self.mixture.data) / np.sum(resps)
 
-	def calc_S(self, pi):
+	def set_S(self, mixing_coeff, resps):
 		"""
 		Calculates S = 1 / (pi * N) * \sum_{i=1}^N R_{ni} (t_n - mu)(t_n - mu)^T in Tipping & Bishop 2006 (equation 84).
 		:param resps: R_{ni}
@@ -90,14 +87,15 @@ class PCAModel(object):
 		:return: S
 		"""
 		sample_cov_matrix = np.zeros([self.mixture.data_dimensions, self.mixture.data_dimensions])
-		for resp, t in zip(self.resps, self.mixture.data):
-			sample_cov_matrix += resp * np.matmul(t - self.mean, (t - self.mean).T) # TODO: Check that orientations are correct
-		sample_cov_matrix /= pi * len(self.mixture.data)
+		for resp, t in zip(resps, self.mixture.data):
+			diff = t - self.mean
+			prod = np.outer(diff, diff)
+			sample_cov_matrix += resp * prod
+		sample_cov_matrix /= mixing_coeff * len(self.mixture.data)
 
 		self.S = sample_cov_matrix
-		return sample_cov_matrix
 
-	def set_M_inv(self):
+	def update_M_inv(self):
 		"""
 		Calculates M^{-1} = (\sigma^2 * I + W^T * W)^{-1} in Tipping & Bishop 2006 (equation 9)
 
@@ -133,7 +131,8 @@ class PCAModel(object):
 		right = np.matmul(right, self.S)
 		right = np.matmul(right, self.W)
 		len_diag = right.shape[0]
-		right += np.diag(np.ones(len_diag)) * self.var
+		right += np.eye(len_diag) * self.var
+		right = np.linalg.inv(right)
 
 		W = np.matmul(left, right)
 		self.W = W
@@ -159,8 +158,7 @@ class PCAModel(object):
 		matrix_prod = np.matmul(self.S, W_old)
 		matrix_prod = np.matmul(matrix_prod, M_inv_old)
 		matrix_prod = np.matmul(matrix_prod, self.W)
-		var = np.trace(self.S - matrix_prod) / self.mixture.data_dimensions
-		return var
+		self.var = np.trace(self.S - matrix_prod) / self.mixture.data_dimensions
 
 	def set_C_inv(self):
 		"""
@@ -214,12 +212,14 @@ class PCAMixture(object):
 		self.no_models = no_models
 
 		self.models = []
-		self.mixing_coeffs = []
+		mixing_coeff = 1 / no_models
+		self.mixing_coeffs = [mixing_coeff]*no_models
 		for i in range(no_models):
 			model = PCAModel(self, latent_dim)
 			self.models.append(model)
-			self.mixing_coeffs.append(1 / no_models)
 
+
+		self.resps = []
 
 	def calc_prob_data(self, data_vector, model = None):
 		"""
@@ -252,25 +252,18 @@ class PCAMixture(object):
 
 		return probability
 
-	def set_mixing_coefficients(self, resps):
-		"""
-		Tipping & Bishop Equation 22 for each model
-		:return:
-		"""
-		for model_idx, (model, model_resps) in enumerate(zip(self.models, resps)):
-			self.mixing_coeffs[model_idx] = model.calc_mixing_coeff(model_resps)
-
-	def set_resps_of_models(self):
+	def set_resps(self):
 		"""
 		Tipping & Bishop equation 21 for each model
 		:return:
 		"""
 		resps = []
 		for model in self.models:
-			model.resps = np.array(self._get_model_resps(model))
-		return resps
+			#model.resps = np.array(self._get_model_resps(model))
+			resps.append(self.get_model_resps(model))
+		self.resps = resps
 
-	def _get_model_resps(self, model):
+	def get_model_resps(self, model):
 		"""
 		Tipping & Bishop equation 21 for model
 
@@ -278,21 +271,30 @@ class PCAMixture(object):
 		:type model: PCAModel
 		"""
 		model_resps = []
+		model_idx = self.models.index(model) # Find model index
+		mixing_coeff = self.mixing_coeffs[model_idx]
 		for data_vector in self.data:
 			probability_model = self.calc_prob_data(data_vector, model)
 			total_probability = self.calc_prob_data(data_vector)
-			model_idx = self.models.index(model) # Find model index
-			resp = model.calc_resp(probability_model, total_probability, self.mixing_coeffs[model_idx])
+			resp = model.calc_resp(probability_model, total_probability, mixing_coeff)
 			model_resps.append(resp)
-		return model_resps
+		return np.array(model_resps)
+
+	def set_mixing_coefficients(self):
+		"""
+		Tipping & Bishop Equation 22 for each model
+		:return:
+		"""
+		for model_idx, (model, model_resps) in enumerate(zip(self.models, self.resps)): # TODO: Remove model_resps from iteration
+			self.mixing_coeffs[model_idx] = model.calc_mixing_coeff(model_resps)
 
 	def set_means_of_models(self):
-		for model in self.models:
-			model.set_mean()
+		for model, model_resps in zip(self.models, self.resps):
+			model.set_mean(model_resps)
 
 	def set_W_of_models(self):
 		for model in self.models:
-			model.calc_W() # TODO: Set arguments
+			model.set_W() # TODO: Set arguments
 
 	def set_var_of_models(self, old_Ws, old_M_invs):
 		for model, W_old, M_inv_old in zip(self.models, old_Ws, old_M_invs):
@@ -307,7 +309,7 @@ class PCAMixture(object):
 	def get_old_M_invs(self):
 		out = []
 		for model in self.models:
-			out.append(model.calc_M_inv())
+			out.append(model.M_inv)
 		return out
 
 	def set_C_det_of_models(self):
@@ -320,15 +322,20 @@ class PCAMixture(object):
 
 	def set_M_inv_of_models(self):
 		for model in self.models:
-			model.set_M_inv()
+			model.update_M_inv()
+
+	def set_S_of_models(self):
+		for model, mixing_coeff, model_resps in zip(self.models, self.mixing_coeffs, self.resps):
+			model.set_S(mixing_coeff, model_resps)
 
 	def fit(self):
 		for i in range(ITERS):
 			self.set_M_inv_of_models()
 			self.set_C_inv_of_models()
 			self.set_C_det_of_models()
-			self.resps = self.get_resps()
-			self.set_mixing_coefficients(self.resps)
+			self.set_resps()
+			self.set_mixing_coefficients()
+			self.set_S_of_models()
 			self.set_means_of_models()
 			old_M_invs = self.get_old_M_invs()
 			old_Ws = self.get_old_Ws()

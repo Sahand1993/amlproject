@@ -1,7 +1,8 @@
 import numpy as np
 import copy
 
-
+def test_func():
+    print("from julias file")
 def read_data(filename, d=18, n=38):
     """ reads text file and creates matrix with data
         input: file name and matrix dimensions
@@ -53,7 +54,83 @@ def calc_mean_T(T_missing):
         mean[i] = mean_i/(N-missing_counter)
     return np.transpose(mean)
 
-#ep(T, E_X, E_XX, mu, N, D, M, is_missing):
+def EM_v1(T, M):
+    """ T is 18x38 
+    """
+    #declare variables&constants
+    L_c = 0     #measurement of convergence
+    max_iter = 50 
+    iter_count = 0
+    T_bool = np.isnan(T)   
+    data_is_missing = np.any(T_bool)
+    D = T.shape[0]
+    N = T.shape[1]
+    mu = calc_mean_T(T)
+    mu = mu.reshape([D, 1])
+    sig2 = .00001
+    W = np.random.rand(D,M)
+    t_list, mu_list, nan_list = get_t_and_mu(T, D) 
+    
+    while(iter_count < max_iter):
+        iter_count += 1
+        print("~~~~~~~~~~~~~~~~~~~ iteration ", iter_count, "~~~~~~~~~~~~~~~~~~~~~~")
+        #print(L_c)
+        L_c, E_X, E_XX = E_step(T, sig2, W, L_c, t_list, mu_list, nan_list, M, data_is_missing)
+        #print('expeced x', E_X)
+        W_new, sig2_new = M_step(T, E_X, E_XX, mu, N, D ,M, data_is_missing)
+        W = W_new
+        sig2 = sig2_new
+
+    return W, sig2
+
+def E_step(T, sig2, W, L_c, t_list, mu_list, nan_list, M, is_missing):
+
+    D = T.shape[0]
+    N = T.shape[1]
+    mu = calc_mean_T(T)
+    mu = mu.reshape([D, 1])
+    diff_list = []
+    E_X = np.zeros([M, N])
+    E_XX = np.zeros([N, M, M])  #update every iteration?
+    W_list = get_list_of_W(W, nan_list, N, D, M)
+    #print('W_i list!!! 0:', W_list[0])
+    #print('W_i list 1', W_list[1])
+    # calculate expected values for x_n and x_n * x_n.T
+    if is_missing:
+        #print("data is missing!")
+        for i in range(N):
+            diff = t_list[i] - mu_list[i]
+            #print('diff at data point ', i, ': ', diff)
+            diff_list.append(diff)
+            W_i = W_list[i]
+            M_inv = calc_M_inv(W_i, sig2, M)
+            #print('m_inv', M_inv)
+            E_x_n = np.dot(M_inv, np.dot(W_i.T, diff))
+            E_xx_n = sig2*M_inv + np.dot(E_x_n, E_x_n.T)
+            E_X[:,i] = E_x_n
+            E_XX[i,:,:] = E_xx_n 
+
+    else:
+        print("data is not missing :D ")
+        for i in range(N):
+            t_i = T[:,i].reshape(D, 1)
+            diff = t_i - mu
+            diff_list.append(diff)
+            M_mat_inv = calc_M_inv(W, sig2, M) 
+            E_x_n = np.dot(M_mat_inv, np.dot(W.T, diff))
+            E_X[:,i] = E_x_n[:,0]
+            E_xx_n = sig2*M_mat_inv + np.dot(E_x_n, E_x_n.T)
+            E_XX[i,:,:] = E_xx_n
+    #print('diff at data point 1', diff_list[0])
+    #print('diff at data point 2', diff_list[1])
+
+    #calcuclate convergence measurement L_c
+    L_c = conv_calc(T, mu, sig2, E_X, E_XX, W, W_list, diff_list)
+
+    print("convergence float: ", L_c)
+    return L_c, E_X, E_XX
+
+def M_step(T, E_X, E_XX, mu, N, D, M, is_missing):
     T_zeros = add_zeros(T, N, D)
     W_new = np.zeros([D, M])
     sig2_new = 0
@@ -243,11 +320,13 @@ def calc_W_new(S, W, M_inv, sigma2, M):
     return np.matmul(A, np.linalg.inv(B + np.matmul(C, A)))
 
 def calc_sigma2_new(S, W, W_new, M_inv_new, M_inv_old, D):
-	""" calculates the new sigma^2 """
-	A = np.matmul(S, W) #SW
-	B = np.matmul(M_inv_old, np.transpose(W_new)) #M^(-1)W_new^T
-	sigma2 = 1.0/D * np.trace(S - np.matmul(A, B))
-	return sigma2
+    """ calculates the new sigma^2 """
+    A = np.matmul(S, W) #SW
+    B = np.matmul(M_inv_old, np.transpose(W_new)) #M^(-1)W_new^T
+    #print(np.trace(S))
+    sigma2 = 1.0/D * np.trace(S - np.matmul(A, B))
+    #print(sigma2)
+    return sigma2
 
 def calc_M_inv(W, sigma2, M):
     """ calculates the inverse of the matrix M given W and sigma2"""
@@ -295,34 +374,59 @@ def calc_expected_XX(expected_X, sigma2, M_inv):
         expected_XX[:, :, i] = sigma2*M_inv + np.matmul(expected_X[i], np.transpose(expected_X[i]))
     return expected_XX
 
-def EM(T_missing, M, probabalistic):
-	"""iteratively calculates W and sigma, treat missing data as latent variables"""
+def EM(T_missing, M):
+    """iteratively calculates W and sigma, treat missing data as latent variables"""
+    """
+    T = T_missing
+    D = T.shape[0]
+    W_init = np.zeros((D, M))
+    sigma2 = 1
+    mu = calc_mean_T(T)
+    t_list, mu_list, nan_list = get_t_and_mu(T, D)
+    W = 5*np.ones((D, M))
+    sigma2 = 1
+    S = calc_S(T, mu, t_list, mu_list, nan_list, D)
+    M_inv = calc_M_inv(W, sigma2, M)
+    repeat = True
+    max_iter = 5000
+    counter = 0
+    while counter < max_iter:
 
-	T = T_missing
-	D = T.shape[0]
-	mu = calc_mean_T(T)
-	t_list, mu_list, nan_list = get_t_and_mu(T, D)
-	W = (np.random.rand(D, M) - 0.5) * 10
-	if probabalistic:
-		sigma2 = 1.0
-	else:
-		sigma2 = 1*10**(-6)
-	S = calc_S(T, mu, t_list, mu_list, nan_list, D)
-	M_inv = calc_M_inv(W, sigma2, M)
-	repeat = True
-	max_iter = 1000
-	counter = 0
-	while counter < max_iter:
-		W_new = calc_W_new(S, W, M_inv, sigma2, M)
-		M_inv_new = calc_M_inv(W_new, sigma2, M)
-		if probabalistic:
-			sigma2_new = calc_sigma2_new(S, W, W_new, M_inv_new, M_inv, D)
-		else: 
-			sigma2_new = sigma2
-		if abs(sigma2 - sigma2_new) < 0.001:
-			repeat = False
-		W = W_new
-		sigma2 = sigma2_new
-		M_inv = M_inv_new
-		counter+=1
-	return W, sigma2
+        W_new = calc_W_new(S, W, M_inv, sigma2, M)
+        M_inv_new = calc_M_inv(W_new, sigma2, M)
+        sigma2_new = calc_sigma2_new(S, W, W_new, M_inv_new, M)
+        if abs(sigma2 - sigma2_new) < 0.001:
+            repeat = False
+        W = W_new
+        sigma2 = sigma2_new
+        M_inv = M_inv_new
+        counter+=136
+
+    return W, sigma2
+    """
+    
+    """iteratively calculates W and sigma, treat missing data as latent variables"""
+
+    T = T_missing
+    D = T.shape[0]
+    mu = calc_mean_T(T)
+    t_list, mu_list, nan_list = get_t_and_mu(T, D)
+    W = (np.random.rand(D, M) - 0.5) * 10
+    sigma2 = 1.0
+    S = calc_S(T, mu, t_list, mu_list, nan_list, D)
+    M_inv = calc_M_inv(W, sigma2, M)
+    repeat = True
+    max_iter = 1000
+    counter = 0
+    while counter < max_iter:
+
+        W_new = calc_W_new(S, W, M_inv, sigma2, M)
+        M_inv_new = calc_M_inv(W_new, sigma2, M)
+        sigma2_new = calc_sigma2_new(S, W, W_new, M_inv_new, M_inv, D)
+        if abs(sigma2 - sigma2_new) < 0.001:
+            repeat = False
+        W = W_new
+        sigma2 = sigma2_new
+        M_inv = M_inv_new
+        counter+=1
+    return W, sigma2

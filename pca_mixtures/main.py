@@ -1,5 +1,5 @@
 import numpy as np
-from funcs import PCAMixture
+from pca_mixtures.funcs import PCAMixture
 
 data = np.loadtxt("../dataset/tobomovirus.txt")
 #print(data)
