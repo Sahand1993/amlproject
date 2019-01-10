@@ -53,5 +53,4 @@ for i in range(0, N):
 ax2.set_xlim([x_min,x_max])												#set axis
 ax2.set_ylim([y_min,y_max])
 plt.show()
-fig2.savefig("projection_with_normal_data.pdf", bbox_inches='tight')
-
+#fig2.savefig("projection_with_normal_data.pdf", bbox_inches='tight')
