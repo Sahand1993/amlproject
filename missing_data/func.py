@@ -51,59 +51,9 @@ def calc_mean_T(T_missing):
             else:
                 mean_i +=t
         mean[i] = mean_i/(N-missing_counter)
-    return np.transpose(mean)
-
-#ep(T, E_X, E_XX, mu, N, D, M, is_missing):
-    T_zeros = add_zeros(T, N, D)
-    W_new = np.zeros([D, M])
-    sig2_new = 0
-    W_factor1 = np.zeros([D, M])
-    W_factor2 = np.zeros([M, M])
-
-    if is_missing:
-        for i in range(N):
-            E_x_n = E_X[:,i].reshape(M,1)
-            t_n = T_zeros[:,i].reshape(D,1)
-            t_mu_diff = t_n - mu
-            W_factor1 += np.dot(t_mu_diff, E_x_n.T)
-            W_factor2 += E_XX[i]
-            #W_new += np.dot(np.dot(t_mu_diff, E_x_n.T), E_XX[i])
-            #sig2_new += np.linalg.norm(t_mu_diff)**2 - 2 * np.dot(E_x_n.T, np.dot(W_new.T, t_mu_diff)) 
-            #+ np.trace(np.dot(E_XX[i], np.dot(W_new.T, W_new)))
-        W_new = np.dot(W_factor1, np.linalg.inv(W_factor2))
-        for i in range(N):
-            E_x_n = E_X[:,i].reshape(M,1)
-            t_n = T_zeros[:,i].reshape(D,1)
-            t_mu_diff = t_n - mu
-            sig2_new += np.linalg.norm(t_mu_diff)**2 - 2 * np.dot(E_x_n.T, np.dot(W_new.T, t_mu_diff)) 
-            + np.trace(np.dot(E_XX[i], np.dot(W_new.T, W_new)))
-        sig2_new = sig2_new[0][0]/(N * D)
-
-    else:
-        for i in range(N):
-            E_x_n = E_X[:,i].reshape(M,1)
-            t_n = T[:,i].reshape(D, 1)
-            t_mu_diff = t_n - mu
-            W_factor1 += np.dot(t_mu_diff, E_x_n.T)
-            W_factor2 += E_XX[i]
-
-        W_new = np.dot(W_factor1, np.linalg.inv(W_factor2))
-
-        for i in range(N):
-            E_x_n = E_X[:,i].reshape(M,1)
-            t_n = T[:,i].reshape(D, 1)
-            t_mu_diff = t_n - mu
-            sig2_new += np.linalg.norm(t_mu_diff)**2 - 2 * np.dot(E_x_n.T, np.dot(W_new.T, t_mu_diff)) 
-            + np.trace(np.dot(E_XX[i], np.dot(W_new.T, W_new)))
-
-        sig2_new = sig2_new[0][0]/(N * D)
-    print(sig2_new)
-    #print('W_new! ', W_new)
-    return W_new, sig2_new
+    return np.reshape(mean, (D, 1))
 
 def add_zeros(T, N, D):
-    # np.nan_to_num()
-    #T_add = T
     T_add = np.zeros([D,N])
     for i in range(D):
         for j in range(N):
@@ -243,13 +193,11 @@ def calc_W_new(S, W, M_inv, sigma2, M):
     return np.matmul(A, np.linalg.inv(B + np.matmul(C, A)))
 
 def calc_sigma2_new(S, W, W_new, M_inv_new, M_inv_old, D):
-    """ calculates the new sigma^2 """
-    A = np.matmul(S, W) #SW
-    B = np.matmul(M_inv_old, np.transpose(W_new)) #M^(-1)W_new^T
-    #print(np.trace(S))
-    sigma2 = 1.0/D * np.trace(S - np.matmul(A, B))
-    #print(sigma2)
-    return sigma2
+	""" calculates the new sigma^2 """
+	A = np.matmul(S, W) #SW
+	B = np.matmul(M_inv_old, np.transpose(W_new)) #M^(-1)W_new^T
+	sigma2 = 1.0/D * np.trace(S - np.matmul(A, B))
+	return sigma2
 
 def calc_M_inv(W, sigma2, M):
     """ calculates the inverse of the matrix M given W and sigma2"""
@@ -290,66 +238,41 @@ def calc_expected_X(M_inv, W, t_list, mu_list, nan_list, M):
         expected_X[:, i] = x.reshape(2)
     return expected_X
 
-def calc_expected_XX(expected_X, sigma2, M_inv):
+def calc_expected_XX(expected_X, sigma2, M_inv, M, N):
     """ calculates expression 29 in Tipping Bishop 1999"""
     expected_XX = np.zeros((M, M, N))
     for i in range(0, N):
         expected_XX[:, :, i] = sigma2*M_inv + np.matmul(expected_X[i], np.transpose(expected_X[i]))
     return expected_XX
 
-def EM(T_missing, M):
-    """iteratively calculates W and sigma, treat missing data as latent variables"""
-    """
-    T = T_missing
-    D = T.shape[0]
-    W_init = np.zeros((D, M))
-    sigma2 = 1
-    mu = calc_mean_T(T)
-    t_list, mu_list, nan_list = get_t_and_mu(T, D)
-    W = 5*np.ones((D, M))
-    sigma2 = 1
-    S = calc_S(T, mu, t_list, mu_list, nan_list, D)
-    M_inv = calc_M_inv(W, sigma2, M)
-    repeat = True
-    max_iter = 5000
-    counter = 0
-    while counter < max_iter:
+def EM(T_missing, M, probabalistic):
+	"""iteratively calculates W and sigma, treat missing data as latent variables"""
 
-        W_new = calc_W_new(S, W, M_inv, sigma2, M)
-        M_inv_new = calc_M_inv(W_new, sigma2, M)
-        sigma2_new = calc_sigma2_new(S, W, W_new, M_inv_new, M)
-        if abs(sigma2 - sigma2_new) < 0.001:
-            repeat = False
-        W = W_new
-        sigma2 = sigma2_new
-        M_inv = M_inv_new
-        counter+=136
-
-    return W, sigma2
-    """
-    
-    """iteratively calculates W and sigma, treat missing data as latent variables"""
-
-    T = T_missing
-    D = T.shape[0]
-    mu = calc_mean_T(T)
-    t_list, mu_list, nan_list = get_t_and_mu(T, D)
-    W = (np.random.rand(D, M) - 0.5) * 10
-    sigma2 = 1.0
-    S = calc_S(T, mu, t_list, mu_list, nan_list, D)
-    M_inv = calc_M_inv(W, sigma2, M)
-    repeat = True
-    max_iter = 1000
-    counter = 0
-    while counter < max_iter:
-
-        W_new = calc_W_new(S, W, M_inv, sigma2, M)
-        M_inv_new = calc_M_inv(W_new, sigma2, M)
-        sigma2_new = calc_sigma2_new(S, W, W_new, M_inv_new, M_inv, D)
-        if abs(sigma2 - sigma2_new) < 0.001:
-            repeat = False
-        W = W_new
-        sigma2 = sigma2_new
-        M_inv = M_inv_new
-        counter+=1
-    return W, sigma2
+	T = T_missing
+	D = T.shape[0]
+	mu = calc_mean_T(T)
+	t_list, mu_list, nan_list = get_t_and_mu(T, D)
+	W = (np.random.rand(D, M) - 0.5) * 10
+	if probabalistic:
+		sigma2 = 1.0
+	else:
+		sigma2 = 1*10**(-6)
+	S = calc_S(T, mu, t_list, mu_list, nan_list, D)
+	M_inv = calc_M_inv(W, sigma2, M)
+	repeat = True
+	max_iter = 1000
+	counter = 0
+	while counter < max_iter:
+		W_new = calc_W_new(S, W, M_inv, sigma2, M)
+		M_inv_new = calc_M_inv(W_new, sigma2, M)
+		if probabalistic:
+			sigma2_new = calc_sigma2_new(S, W, W_new, M_inv_new, M_inv, D)
+		else: 
+			sigma2_new = sigma2
+		if abs(sigma2 - sigma2_new) < 0.001:
+			repeat = False
+		W = W_new
+		sigma2 = sigma2_new
+		M_inv = M_inv_new
+		counter += 1
+	return W, sigma2
