@@ -192,10 +192,7 @@ def calc_expected_X(M_inv, W, t_list, mu_list, nan_list, M):
         nan_i = nan_list[i]
         W_i = calc_W_from_nan_index(W_i, nan_i)
         M_inv_W_T = np.dot(M_inv, np.transpose(W_i))
-        print(t_list[i].shape)
-        print(mu_list[i].shape)
         diff = t_list[i]-mu_list[i]
-        print(diff.shape)
         x = np.dot( M_inv_W_T, diff)
         expected_X[:, i] = x.reshape(2)
     return expected_X
@@ -218,7 +215,7 @@ def EM(T_missing, M, probabalistic):
 	if probabalistic:
 		sigma2 = 1.0
 	else:
-		sigma2 = 1*10**(-6)
+		sigma2 = 1*10**(-3)
 	S = calc_S(T, mu, t_list, mu_list, nan_list, D)
 	M_inv = calc_M_inv(W, sigma2, M)
 	repeat = True
