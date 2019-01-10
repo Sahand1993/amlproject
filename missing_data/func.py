@@ -113,16 +113,13 @@ def get_t_and_mu(T, D):
         nan_indices_list = N*[[]]
         for i in range(0, N):
             t_i_missing = T[:, i]
-            print(t_i_missing)
             for j in range(0, D):
                 if np.isnan(T[j, i]):
                     copy = nan_indices_list[i].copy()
                     copy.append(j)
                     nan_indices_list[i] = copy
             nan_indices = nan_indices_list[i]
-            print(nan_indices)
             t_i_removed = np.delete(t_i_missing, nan_indices)
-            print(t_i_removed)
             mu_i_removed = np.delete(mu, nan_indices)
             t_list.append(t_i_removed)
             mu_list.append(mu_i_removed)
@@ -137,7 +134,7 @@ def get_t_and_mu(T, D):
 
 def calc_S(T, mu, t_list, mu_list, nan_list, D):
     """ calculates the matrix S"""
-    N = len(t_list)
+    N = T.shape[1]
     S = np.zeros((D, D))
     for i in range(0, D):
         for j in range(0, N):
@@ -145,9 +142,10 @@ def calc_S(T, mu, t_list, mu_list, nan_list, D):
                 T[i, j] = 0
     for i in range(0, N):
         t_i = T[:, i]
+        print(t_i)
         mu_i = mu
-        t_i = np.insert(t_i, nan_list[i], 0)
-        mu_i = np.insert(mu_i, nan_list[i], 0)
+        # t_i = np.insert(t_i, nan_list[i], 0)
+        # mu_i = np.insert(mu_i, nan_list[i], 0)
         diff = t_i-mu_i
         mat = np.matmul(diff, np.transpose(diff))
         S += mat
