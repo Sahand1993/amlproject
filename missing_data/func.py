@@ -53,54 +53,6 @@ def calc_mean_T(T_missing):
         mean[i] = mean_i/(N-missing_counter)
     return np.transpose(mean)
 
-#ep(T, E_X, E_XX, mu, N, D, M, is_missing):
-    T_zeros = add_zeros(T, N, D)
-    W_new = np.zeros([D, M])
-    sig2_new = 0
-    W_factor1 = np.zeros([D, M])
-    W_factor2 = np.zeros([M, M])
-
-    if is_missing:
-        for i in range(N):
-            E_x_n = E_X[:,i].reshape(M,1)
-            t_n = T_zeros[:,i].reshape(D,1)
-            t_mu_diff = t_n - mu
-            W_factor1 += np.dot(t_mu_diff, E_x_n.T)
-            W_factor2 += E_XX[i]
-            #W_new += np.dot(np.dot(t_mu_diff, E_x_n.T), E_XX[i])
-            #sig2_new += np.linalg.norm(t_mu_diff)**2 - 2 * np.dot(E_x_n.T, np.dot(W_new.T, t_mu_diff)) 
-            #+ np.trace(np.dot(E_XX[i], np.dot(W_new.T, W_new)))
-        W_new = np.dot(W_factor1, np.linalg.inv(W_factor2))
-        for i in range(N):
-            E_x_n = E_X[:,i].reshape(M,1)
-            t_n = T_zeros[:,i].reshape(D,1)
-            t_mu_diff = t_n - mu
-            sig2_new += np.linalg.norm(t_mu_diff)**2 - 2 * np.dot(E_x_n.T, np.dot(W_new.T, t_mu_diff)) 
-            + np.trace(np.dot(E_XX[i], np.dot(W_new.T, W_new)))
-        sig2_new = sig2_new[0][0]/(N * D)
-
-    else:
-        for i in range(N):
-            E_x_n = E_X[:,i].reshape(M,1)
-            t_n = T[:,i].reshape(D, 1)
-            t_mu_diff = t_n - mu
-            W_factor1 += np.dot(t_mu_diff, E_x_n.T)
-            W_factor2 += E_XX[i]
-
-        W_new = np.dot(W_factor1, np.linalg.inv(W_factor2))
-
-        for i in range(N):
-            E_x_n = E_X[:,i].reshape(M,1)
-            t_n = T[:,i].reshape(D, 1)
-            t_mu_diff = t_n - mu
-            sig2_new += np.linalg.norm(t_mu_diff)**2 - 2 * np.dot(E_x_n.T, np.dot(W_new.T, t_mu_diff)) 
-            + np.trace(np.dot(E_XX[i], np.dot(W_new.T, W_new)))
-
-        sig2_new = sig2_new[0][0]/(N * D)
-    print(sig2_new)
-    #print('W_new! ', W_new)
-    return W_new, sig2_new
-
 def add_zeros(T, N, D):
     # np.nan_to_num()
     #T_add = T
