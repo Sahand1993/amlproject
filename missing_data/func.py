@@ -51,11 +51,9 @@ def calc_mean_T(T_missing):
             else:
                 mean_i +=t
         mean[i] = mean_i/(N-missing_counter)
-    return np.transpose(mean)
+    return np.reshape(mean, (D, 1))
 
 def add_zeros(T, N, D):
-    # np.nan_to_num()
-    #T_add = T
     T_add = np.zeros([D,N])
     for i in range(D):
         for j in range(N):
@@ -240,7 +238,7 @@ def calc_expected_X(M_inv, W, t_list, mu_list, nan_list, M):
         expected_X[:, i] = x.reshape(2)
     return expected_X
 
-def calc_expected_XX(expected_X, sigma2, M_inv):
+def calc_expected_XX(expected_X, sigma2, M_inv, M, N):
     """ calculates expression 29 in Tipping Bishop 1999"""
     expected_XX = np.zeros((M, M, N))
     for i in range(0, N):
@@ -276,5 +274,5 @@ def EM(T_missing, M, probabalistic):
 		W = W_new
 		sigma2 = sigma2_new
 		M_inv = M_inv_new
-		counter+=1
+		counter += 1
 	return W, sigma2
