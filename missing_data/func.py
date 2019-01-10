@@ -128,7 +128,7 @@ def get_t_and_mu(T, D):
         mu_list = []
         nan_indices_list = N*[[]]
         for i in range(0, N):
-            t_list.append(T[:, i])
+            t_list.append(T[:, i].reshape(D, 1))
             mu_list.append(mu)
     return t_list, mu_list, nan_indices_list
 
@@ -140,13 +140,15 @@ def calc_S(T, mu, t_list, mu_list, nan_list, D):
     for i in range(0, D):
         for j in range(0, N):
             if np.isnan(T[i, j]):
-                T[i, j] = 0
+                T[i, j] = mu[i]
     for i in range(0, N):
         t_i = T[:, i]
         t_i = np.reshape(t_i, (D, 1))
         mu_i = mu
         diff = t_i-mu_i
+        #print(diff)
         mat = np.dot(diff, np.transpose(diff))
+        #print(mat)
         S += mat
     S = S/(N*0.8/2)
     return S
@@ -190,7 +192,11 @@ def calc_expected_X(M_inv, W, t_list, mu_list, nan_list, M):
         nan_i = nan_list[i]
         W_i = calc_W_from_nan_index(W_i, nan_i)
         M_inv_W_T = np.dot(M_inv, np.transpose(W_i))
-        x = np.dot( M_inv_W_T, t_list[i]-mu_list[i])
+        print(t_list[i].shape)
+        print(mu_list[i].shape)
+        diff = t_list[i]-mu_list[i]
+        print(diff.shape)
+        x = np.dot( M_inv_W_T, diff)
         expected_X[:, i] = x.reshape(2)
     return expected_X
 

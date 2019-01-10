@@ -12,5 +12,5 @@ t_list, mu_list, index = get_t_and_mu(T, D)
 
 S = calc_S(T, mu, t_list, mu_list, index, D)
 
-print(3*S)
+print(3*0.8/2*S)
 	
