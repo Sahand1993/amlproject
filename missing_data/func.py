@@ -222,7 +222,7 @@ def EM(T_missing, M, probabalistic):
 	S = calc_S(T, mu, t_list, mu_list, nan_list, D)
 	M_inv = calc_M_inv(W, sigma2, M)
 	repeat = True
-	max_iter = 100
+	max_iter = 1000
 	counter = 0
 	while counter < max_iter:
 		W_new = calc_W_new(S, W, M_inv, sigma2, M)
