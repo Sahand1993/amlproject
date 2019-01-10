@@ -134,40 +134,6 @@ def get_t_and_mu(T, D):
 
 def calc_S(T, mu, t_list, mu_list, nan_list, D):
     """ calculates the matrix S"""
-    N = T.shape[1]
-    S = np.zeros((D, D))
-    for i in range(0, D):
-        for j in range(0, N):
-            if np.isnan(T[i, j]):
-                T[i, j] = 0
-    for i in range(0, N):
-        t_i = T[:, i]
-        print(t_i)
-        mu_i = mu
-        # t_i = np.insert(t_i, nan_list[i], 0)
-        # mu_i = np.insert(mu_i, nan_list[i], 0)
-        diff = t_i-mu_i
-        mat = np.matmul(diff, np.transpose(diff))
-        S += mat
-    return S/N
-
-def calc_W_new(S, W, M_inv, sigma2, M):
-    """ calculates the new version of W"""
-    A = np.matmul(S, W) #SW
-    B = sigma2*np.eye(M) # sigma2*I
-    C = np.matmul(M_inv, np.transpose(W)) #M^(-1)W^T
-    D = np.matmul(S, W) #SW
-    return np.matmul(A, np.linalg.inv(B + np.matmul(C, D)))
-
-def calc_sigma2_new(S, W, W_new, M_inv, D):
-    """ calculates the new sigma^2 """
-    A = np.matmul(S, W) #SW
-    B = np.matmul(M_inv, np.transpose(W_new)) #M^(-1)W_new
-
-    return 1/D * np.trace(S - np.matmul(A, B))
-
-def calc_S(T, mu, t_list, mu_list, nan_list, D):
-    """ calculates the matrix S"""
     mu = mu.reshape(D, 1)
     N = len(t_list)
     S = np.zeros((D, D))
