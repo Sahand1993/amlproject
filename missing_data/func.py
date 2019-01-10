@@ -191,9 +191,7 @@ def calc_sigma2_new(S, W, W_new, M_inv_new, M_inv_old, D):
 	""" calculates the new sigma^2 """
 	A = np.matmul(S, W) #SW
 	B = np.matmul(M_inv_old, np.transpose(W_new)) #M^(-1)W_new^T
-	print(np.trace(S))
 	sigma2 = 1.0/D * np.trace(S - np.matmul(A, B))
-	print(sigma2)
 	return sigma2
 
 def calc_M_inv(W, sigma2, M):
@@ -232,7 +230,7 @@ def calc_expected_XX(expected_X, sigma2, M_inv):
 		expected_XX[:, :, i] = sigma2*M_inv + np.matmul(expected_X[i], np.transpose(expected_X[i]))
 	return expected_XX
 
-def EM(T_missing, M):
+def EM(T_missing, M, probabalistic):
 	"""iteratively calculates W and sigma, treat missing data as latent variables"""
 
 	T = T_missing
@@ -240,17 +238,22 @@ def EM(T_missing, M):
 	mu = calc_mean_T(T)
 	t_list, mu_list, nan_list = get_t_and_mu(T, D)
 	W = (np.random.rand(D, M) - 0.5) * 10
-	sigma2 = 1.0
+	if probabalistic:
+		sigma2 = 1.0
+	else:
+		sigma2 = 1*10**(-6)
 	S = calc_S(T, mu, t_list, mu_list, nan_list, D)
 	M_inv = calc_M_inv(W, sigma2, M)
 	repeat = True
 	max_iter = 1000
 	counter = 0
 	while counter < max_iter:
-
 		W_new = calc_W_new(S, W, M_inv, sigma2, M)
 		M_inv_new = calc_M_inv(W_new, sigma2, M)
-		sigma2_new = calc_sigma2_new(S, W, W_new, M_inv_new, M_inv, D)
+		if probabalistic:
+			sigma2_new = calc_sigma2_new(S, W, W_new, M_inv_new, M_inv, D)
+		else: 
+			sigma2_new = sigma2
 		if abs(sigma2 - sigma2_new) < 0.001:
 			repeat = False
 		W = W_new
