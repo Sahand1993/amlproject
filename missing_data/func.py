@@ -211,16 +211,6 @@ def calc_M_inv_W_T(W, sigma2, M):
     M_inv_W_T = np.matmul(M_mat_inverse, np.transpose(W))
     return M_inv_W_T
 
-def calc_expected_X(M_inv_W_T, t_list, mu_list, M):
-    """ calculates the current projections on the principas subspace (the latent variables"""
-    N = len(t_list)
-    expected_X = np.zeros((M, N))
-    for i in range(0, N):
-        x = np.matmul( M_inv_W_T, t_list[i]-mu_list[i])
-        #print(x)
-        expected_X[:, i] = x
-    return expected_X
-
 def calc_W_from_nan_index(W, nan_list):
     W = np.delete(W, nan_list, 0)
     return W
@@ -234,7 +224,9 @@ def calc_expected_X(M_inv, W, t_list, mu_list, nan_list, M):
         nan_i = nan_list[i]
         W_i = calc_W_from_nan_index(W_i, nan_i)
         M_inv_W_T = np.dot(M_inv, np.transpose(W_i))
-        x = np.dot( M_inv_W_T, t_list[i]-mu_list[i])
+        x = np.dot(M_inv_W_T, t_list[i]-mu_list[i])
+        #diff = t_list[i].reshape(t_list[i].shape[0],1) - mu_list[i].reshape(mu_list[i].shape[0],1)
+        #x = np.dot(M_inv_W_T, diff)
         expected_X[:, i] = x.reshape(2)
     return expected_X
 

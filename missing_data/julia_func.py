@@ -6,7 +6,7 @@ def EM_v1(T, M):
     """
     #declare variables&constants
     L_c = 0     #measurement of convergence
-    max_iter = 50 
+    max_iter = 5
     iter_count = 0
     T_bool = np.isnan(T)   
     data_is_missing = np.any(T_bool)
