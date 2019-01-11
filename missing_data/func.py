@@ -63,7 +63,7 @@ def add_zeros(T, N, D):
                 T_add[i][j] = T[i][j]
     return T_add
 
-def conv_calc(T, mu, sig2, E_X, E_XX, W, W_list, diff_list):
+def conv_calc(T, sig2, E_X, E_XX, W, W_list, t_list, mu_list):
     """ calculates convergence float L_c
         input: data T, mean values mu, variance sig2, expected latent values E_X, expected latent values product E_XX, projection matrix W
         output: L_c value
@@ -73,10 +73,12 @@ def conv_calc(T, mu, sig2, E_X, E_XX, W, W_list, diff_list):
     D = T.shape[0]
 
     for i in range(N):
+        diff = t_list[i] - mu_list[i]
+        diff = diff.reshape((diff.shape[0],))
         term_1 = 0.5 * D * np.log(sig2)
         term_2 = 0.5 * np.trace(E_XX[i])
-        term_3 = 0.5 * 1/sig2 * np.dot(diff_list[i].T, diff_list[i])
-        term_4 = -1/sig2 * np.dot(E_X[:,i].T, np.dot(W_list[i].T, diff_list[i]))
+        term_3 = 0.5 * 1/sig2 * np.dot(diff.T, diff)
+        term_4 = -1/sig2 * np.dot(E_X[:,i].T, np.dot(W_list[i].T, diff))
         term_5 = 0.5*sig2 * np.trace(np.dot(W_list[i].T, np.dot(W_list[i], E_XX[i])))
         
         L_c += term_1 + term_2 + term_3 + term_4 + term_5
@@ -85,7 +87,7 @@ def conv_calc(T, mu, sig2, E_X, E_XX, W, W_list, diff_list):
 
     return L_c
 
-def get_list_of_W(W_orig, nan_list, N, D, M):
+def get_list_of_W(W_orig, nan_list, N):
     """
     Adjusts W to have correct dimensions according to each data point with missing values.
     Input: "normal" W matrix with dimensions (DxM)
@@ -161,11 +163,11 @@ def calc_W_new(S, W, M_inv, sigma2, M):
     return np.matmul(A, np.linalg.inv(B + np.matmul(C, A)))
 
 def calc_sigma2_new(S, W, W_new, M_inv_new, M_inv_old, D):
-	""" calculates the new sigma^2 """
-	A = np.matmul(S, W) #SW
-	B = np.matmul(M_inv_old, np.transpose(W_new)) #M^(-1)W_new^T
-	sigma2 = 1.0/D * np.trace(S - np.matmul(A, B))
-	return sigma2
+    """ calculates the new sigma^2 """
+    A = np.matmul(S, W) #SW
+    B = np.matmul(M_inv_old, np.transpose(W_new)) #M^(-1)W_new^T
+    sigma2 = 1.0/D * np.trace(S - np.matmul(A, B))
+    return sigma2
 
 def calc_M_inv(W, sigma2, M):
     """ calculates the inverse of the matrix M given W and sigma2"""
@@ -205,34 +207,68 @@ def calc_expected_XX(expected_X, sigma2, M_inv, M, N):
         expected_XX[:, :, i] = sigma2*M_inv + np.matmul(expected_X[i], np.transpose(expected_X[i]))
     return expected_XX
 
-def EM(T_missing, M, probabalistic):
-	"""iteratively calculates W and sigma, treat missing data as latent variables"""
+def calc_expected_XX_v2(expected_X, sigma2, M_inv, M, N):
+    """ calculates expression 29 in Tipping Bishop 1999"""
+    expected_XX = np.zeros((N, M, M))
+    for i in range(0, N):
+        expected_XX[i, :, :] = sigma2*M_inv + np.dot(expected_X[:,i], expected_X[:,i].T)
+    return expected_XX
 
-	T = T_missing
-	D = T.shape[0]
-	mu = calc_mean_T(T)
-	t_list, mu_list, nan_list = get_t_and_mu(T, D)
-	W = (np.random.rand(D, M) - 0.5) * 10
-	if probabalistic:
-		sigma2 = 1.0
-	else:
-		sigma2 = 1*10**(-3)
-	S = calc_S(T, mu, t_list, mu_list, nan_list, D)
-	M_inv = calc_M_inv(W, sigma2, M)
-	repeat = True
-	max_iter = 1000
-	counter = 0
-	while counter < max_iter:
-		W_new = calc_W_new(S, W, M_inv, sigma2, M)
-		M_inv_new = calc_M_inv(W_new, sigma2, M)
-		if probabalistic:
-			sigma2_new = calc_sigma2_new(S, W, W_new, M_inv_new, M_inv, D)
-		else: 
-			sigma2_new = sigma2
-		if abs(sigma2 - sigma2_new) < 0.001:
-			repeat = False
-		W = W_new
-		sigma2 = sigma2_new
-		M_inv = M_inv_new
-		counter += 1
-	return W, sigma2
+def get_components_for_likelihood(W, sigma2, M_inv, nan_list, mu_list, t_list, M, N):
+    """ Calculates arrays needed for the conv_calc function.
+        output: expected x, expected xx and list of N matrices of W
+    """
+    W_list = get_list_of_W(W, nan_list, N)
+    E_X = calc_expected_X(M_inv, W, t_list, mu_list, nan_list, M)
+    E_XX = calc_expected_XX_v2(E_X, sigma2, M_inv, M, N)
+    return E_X, E_XX, W_list
+
+def conv_eval(new_L, old_L):
+    
+    if new_L/old_L > 0.9999:
+        return False
+    else:
+        return True
+
+def EM(T_missing, M, probabalistic):
+    """iteratively calculates W and sigma, treat missing data as latent variables"""
+
+    T = T_missing
+    D = T.shape[0]
+    N = T.shape[1]
+    mu = calc_mean_T(T)
+    t_list, mu_list, nan_list = get_t_and_mu(T, D)
+    W = (np.random.rand(D, M) - 0.5) * 10
+    if probabalistic:
+        sigma2 = 1.0
+    else:
+        sigma2 = 1*10**(-3)
+    S = calc_S(T, mu, t_list, mu_list, nan_list, D)
+    M_inv = calc_M_inv(W, sigma2, M)
+    repeat = True
+    max_iter = 1000
+    counter = 0
+    repeat = True
+    L_c = 0
+
+    while (repeat and counter < max_iter):
+
+        W_new = calc_W_new(S, W, M_inv, sigma2, M)
+        M_inv_new = calc_M_inv(W_new, sigma2, M)
+        if probabalistic:
+            sigma2_new = calc_sigma2_new(S, W, W_new, M_inv_new, M_inv, D)
+        else: 
+            sigma2_new = sigma2
+        if abs(sigma2 - sigma2_new) < 0.001:
+            repeat = False
+        W = W_new
+        sigma2 = sigma2_new
+        M_inv = M_inv_new
+        E_X, E_XX, W_list = get_components_for_likelihood(W, sigma2, M_inv, nan_list, mu_list, t_list, M, N)
+        L_c_new = conv_calc(T, sigma2, E_X, E_XX, W_new, W_list, t_list, mu_list)
+        if not L_c == 0: # if not first iteration
+            repeat = conv_eval(L_c_new, L_c)
+        #print("log likelihood @ iteration ", counter, " :", L_c)
+        L_c = L_c_new
+        counter += 1
+    return W, sigma2

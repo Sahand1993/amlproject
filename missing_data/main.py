@@ -3,7 +3,7 @@ from julia_func import *
 import matplotlib.pyplot as plt
 import copy
 
-np.random.seed(1)
+np.random.seed(5)
 
 f = '../dataset/tobomovirus.txt'
 uncorrupted_data = read_data(f)
@@ -37,7 +37,7 @@ plt.show()
 fig1.savefig("projection_with_missing_data.pdf", bbox_inches='tight')
 
 """uncorrupted"""
-W, sigma2 = EM(uncorrupted_data, M, False)								#find W and sigma2 with EM
+W, sigma2 = EM(uncorrupted_data, M, True)								#find W and sigma2 with EM
 M_inv = calc_M_inv(W, sigma2, M)										#Calculate M^(-1)
 t_list, mu_list, nan_list = get_t_and_mu(uncorrupted_data_copy, D)		#sort out NaN elements and sava indeces
 expected_X = calc_expected_X(M_inv, W, t_list, mu_list, nan_list, M)	#project points
