@@ -3,13 +3,23 @@ from pca_mixtures.constants import *
 
 def normal_pdf(x, mean, cov_det, cov_inv):
 	diff = x - mean
-	exponent = np.matmul(diff.T, cov_inv)
-	exponent = -np.dot(exponent, diff)
+	exponent = np.matmul(diff, cov_inv)
+	exponent = -np.dot(exponent, diff) / 2
 	exp = np.exp(exponent)
 	normalizer = (2 * np.pi)**(len(x) / 2) * np.sqrt(cov_det)
 	out = exp / normalizer
 	return out
 
+def normal_logpdf(x, mean, cov_det, cov_inv):
+	diff = x - mean
+	dim = len(x)
+
+	exponent = np.matmul(diff, cov_inv)
+	exponent = np.dot(exponent, diff) / 2
+
+	out = - np.log(exponent) - np.log(cov_det) - dim * np.log(2 * np.pi)
+	out /= 2
+	return out
 
 class PCAModel(object):
 
@@ -24,14 +34,19 @@ class PCAModel(object):
 
 		#self.resps = None
 		self.mean = np.zeros(mixture.data_dimensions)
-		self.W = np.zeros((mixture.data_dimensions, latent_dim))
+		shape_W = (mixture.data_dimensions, latent_dim)
+		W = []
+		for i in range(latent_dim):
+			col = np.random.multivariate_normal(np.zeros(mixture.data_dimensions), np.eye(mixture.data_dimensions))
+			W.append(col)
+		self.W = np.array(W).T
 		self.M_inv = None
 		self.var = INITIAL_VAR
 		self.S = None
 		self.C_det = None
 		self.C_inv = None
 
-	def calc_resp(self, prob_t_given_i, prob_t, pi_i):
+	def calc_resp(self, prob_t_given_i, prob_t, mixing_coeff):
 		"""
 		Calculates and returns R_{ni} = p(t | i) * pi_i / p(t) in Tipping & Bishop 2006 (equation 21).
 		t is a vector, R_{ni} and pi_i are scalars.
@@ -42,12 +57,12 @@ class PCAModel(object):
 		:param prob_t: p(t)
 		:type prob_t: float
 
-		:param pi_i: pi_i
-		:type pi_i: float
+		:param mixing_coeff: pi_i
+		:type mixing_coeff: float
 
 		:return: R_{ni}
 		"""
-		return prob_t_given_i * pi_i / prob_t
+		return prob_t_given_i * mixing_coeff / prob_t
 
 	def calc_mixing_coeff(self, resps):
 		"""
@@ -161,7 +176,7 @@ class PCAModel(object):
 		"""
 		matrix_prod = np.matmul(self.S, W_old)
 		matrix_prod = np.matmul(matrix_prod, M_inv_old)
-		matrix_prod = np.matmul(matrix_prod, self.W)
+		matrix_prod = np.matmul(matrix_prod, self.W.T)
 		self.var = np.trace(self.S - matrix_prod) / self.mixture.data_dimensions
 
 	def set_C_inv(self):
@@ -202,7 +217,24 @@ class PCAModel(object):
 		:type return: float
 		"""
 		return normal_pdf(data_vector, self.mean, self.C_det, self.C_inv)
+	def get_model_power(self, x):
+		"""
+		Gets the exponent in the normal distribution pdf for vector x
+		:param x:
+		:return:
+		"""
+		diff = x - self.mean
+		power = np.matmul(diff, self.C_inv)
+		power = - np.dot(power, diff) / 2
+		return power
 
+	def logpdf(self, x):
+		return normal_logpdf(x, self.mean, self.C_det, self.C_inv)
+
+	def posterior(self, data):
+		diff = data - self.mean
+		posteriors = np.dot(diff, np.matmul(self.M_inv, self.W.T).T)
+		return posteriors
 
 class PCAMixture(object):
 	def __init__(self, data, no_models, latent_dim):
@@ -222,11 +254,9 @@ class PCAMixture(object):
 		for i in range(no_models):
 			model = PCAModel(self, latent_dim)
 			self.models.append(model)
-
-
 		self.resps = []
 
-	def calc_prob_data(self, data_vector, model = None):
+	def calc_prob_data(self, data_vector):
 		"""
 		Computes the probability of a single data vector t.
 
@@ -248,8 +278,6 @@ class PCAMixture(object):
 		:return: p(t | i) or p(t)
 		:type return: float
 		"""
-		if model:
-			return model.calc_prob_data(data_vector)
 
 		probability = 0
 		for model, mixing_coeff in zip(self.models, self.mixing_coeffs):
@@ -264,7 +292,6 @@ class PCAMixture(object):
 		"""
 		resps = []
 		for model in self.models:
-			#model.resps = np.array(self._get_model_resps(model))
 			resps.append(self.get_model_resps(model))
 		self.resps = resps
 
@@ -276,12 +303,11 @@ class PCAMixture(object):
 		:type model: PCAModel
 		"""
 		model_resps = []
-		model_idx = self.models.index(model) # Find model index
-		mixing_coeff = self.mixing_coeffs[model_idx]
 		for data_vector in self.data:
-			probability_model = self.calc_prob_data(data_vector, model)
-			total_probability = self.calc_prob_data(data_vector)
-			resp = model.calc_resp(probability_model, total_probability, mixing_coeff)
+			max_model = self.get_max_model(data_vector)
+			left_factor = self.calc_left_frac(data_vector, max_model, model)
+			right_factor = self.calc_right_frac(data_vector, max_model)
+			resp = left_factor * right_factor
 			model_resps.append(resp)
 		return np.array(model_resps)
 
@@ -290,7 +316,7 @@ class PCAMixture(object):
 		Tipping & Bishop Equation 22 for each model
 		:return:
 		"""
-		for model_idx, (model, model_resps) in enumerate(zip(self.models, self.resps)): # TODO: Remove model_resps from iteration
+		for model_idx, (model, model_resps) in enumerate(zip(self.models, self.resps)):
 			self.mixing_coeffs[model_idx] = model.calc_mixing_coeff(model_resps)
 
 	def set_means_of_models(self):
@@ -333,12 +359,66 @@ class PCAMixture(object):
 		for model, mixing_coeff, model_resps in zip(self.models, self.mixing_coeffs, self.resps):
 			model.set_S(mixing_coeff, model_resps)
 
+	def calc_right_frac(self, x, max_model):
+		sum = 0
+		for model in self.models:
+			temp = self.calc_left_frac(x, max_model, model)
+			sum += temp
+		out = 1 / sum
+		return out
+
+	def calc_left_frac(self, x, max_model, model):
+		"""
+		Calculates p(x | model) * pi_{model} / p(x | max_model)
+		:param max_model:
+		:param model:
+		:return:
+		"""
+		model_idx = self.models.index(model)
+		res = self.mixing_coeffs[model_idx]
+		res = res * np.sqrt(max_model.C_det / model.C_det)
+
+		#model_power = -np.matmul(model_diff, model.C_inv)
+		#model_power = np.dot(model_power, model_diff)
+
+		model_power = model.get_model_power(x)
+		max_model_power = max_model.get_model_power(x)
+
+		exp = np.exp(model_power - max_model_power)
+
+		res *= exp
+
+		return res
+
+	def get_max_model(self, x):
+		"""
+		Return argmax_i[p(x | i)]
+		:param x: data vector
+		:return: the index of the model with the highest probability
+		"""
+		curr_max_model = None
+		curr_max_likelihood = None
+		for model in self.models:
+			loglikelihood = model.logpdf(x)
+			try:
+				if loglikelihood > curr_max_likelihood:
+					curr_max_model = model
+					curr_max_likelihood = loglikelihood
+			except TypeError: # If on the first model
+				curr_max_model = model
+				curr_max_likelihood = loglikelihood
+		return curr_max_model
+
 	def fit(self):
 		for i in range(ITERS):
 			self.set_M_inv_of_models()
+			self.print_M_invs()
 			self.set_C_inv_of_models()
+			self.print_C_invs()
 			self.set_C_det_of_models()
+			self.print_C_dets()
 			self.set_resps()
+			self.print_resps()
 			self.set_mixing_coefficients()
 			self.set_S_of_models()
 			self.set_means_of_models()
@@ -347,6 +427,23 @@ class PCAMixture(object):
 			self.set_W_of_models()
 			self.set_var_of_models(old_Ws, old_M_invs)
 
+	def print_M_invs(self):
+		print("\nM_invs:")
+		for model in self.models:
+			print(model.M_inv)
 
+	def print_C_invs(self):
+		print("\nC_invs:")
+		for model in self.models:
+			print(model.C_inv)
 
+	def print_C_dets(self):
+		print("\nC_dets:")
+		for model in self.models:
+			print(model.C_det)
+
+	def print_resps(self):
+		print("\nresps:")
+		for model_resps in self.resps:
+			print(model_resps)
 
