@@ -25,14 +25,14 @@ def remove_data(T, num_rmv=136):
     corrupting = np.ones(N*D)
     corrupting[0:num_rmv] = np.nan
     np.random.shuffle(corrupting)
-
+    T_corrupt = np.zeros([D,N])
     count = 0 
     for i in range(D):
         for j in range(N):
-            T[i][j] = T[i][j]*corrupting[count]
+            T_corrupt[i][j] = T[i][j]*corrupting[count]
             count += 1
 
-    return T
+    return T_corrupt
 
 def calc_mean_T(T_missing):
     """ calculates the mean of the data, if corrupted it gives mean anyway"""
@@ -192,17 +192,15 @@ def calc_expected_X(M_inv, W, t_list, mu_list, nan_list, M):
         nan_i = nan_list[i]
         W_i = calc_W_from_nan_index(W_i, nan_i)
         M_inv_W_T = np.dot(M_inv, np.transpose(W_i))
-<<<<<<< HEAD
         x = np.dot(M_inv_W_T, t_list[i]-mu_list[i])
         #diff = t_list[i].reshape(t_list[i].shape[0],1) - mu_list[i].reshape(mu_list[i].shape[0],1)
         #x = np.dot(M_inv_W_T, diff)
-=======
+
         print(t_list[i].shape)
         print(mu_list[i].shape)
         diff = t_list[i]-mu_list[i]
         print(diff.shape)
         x = np.dot( M_inv_W_T, diff)
->>>>>>> 6e6b224fe2b69575dcfdc69b09766d4df58594e9
         expected_X[:, i] = x.reshape(2)
     return expected_X
 
