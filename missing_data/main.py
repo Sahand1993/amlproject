@@ -37,6 +37,7 @@ plt.show()
 fig1.savefig("projection_with_missing_data.pdf", bbox_inches='tight')
 
 """uncorrupted"""
+
 W, sigma2 = EM(uncorrupted_data, M, True)								#find W and sigma2 with EM
 M_inv = calc_M_inv(W, sigma2, M)										#Calculate M^(-1)
 t_list, mu_list, nan_list = get_t_and_mu(uncorrupted_data_copy, D)		#sort out NaN elements and sava indeces
@@ -54,3 +55,4 @@ ax2.set_xlim([x_min,x_max])												#set axis
 ax2.set_ylim([y_min,y_max])
 plt.show()
 fig2.savefig("projection_with_normal_data.pdf", bbox_inches='tight')
+

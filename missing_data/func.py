@@ -246,13 +246,12 @@ def EM(T_missing, M, probabalistic):
     S = calc_S(T, mu, t_list, mu_list, nan_list, D)
     M_inv = calc_M_inv(W, sigma2, M)
     repeat = True
-    max_iter = 1000
+    max_iter = 100
     counter = 0
     repeat = True
     L_c = 0
 
     while (repeat and counter < max_iter):
-
         W_new = calc_W_new(S, W, M_inv, sigma2, M)
         M_inv_new = calc_M_inv(W_new, sigma2, M)
         if probabalistic:
@@ -269,6 +268,7 @@ def EM(T_missing, M, probabalistic):
         if not L_c == 0: # if not first iteration
             repeat = conv_eval(L_c_new, L_c)
         #print("log likelihood @ iteration ", counter, " :", L_c)
+        #print("lc new:", L_c_new)
         L_c = L_c_new
         counter += 1
     return W, sigma2
