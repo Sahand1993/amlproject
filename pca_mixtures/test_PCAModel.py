@@ -135,7 +135,7 @@ class TestPCAModel(TestCase):
 
 		model.set_var(W_old, M_inv_old)
 
-		self.assertAlmostEqual(model.var, 1.02298850575)
+		self.assertAlmostEqual(model.var, 52/87)
 
 	def test_set_C_inv(self):
 		data = np.array([
@@ -204,5 +204,5 @@ class TestPCAModel(TestCase):
 		model.C_det = C_det
 		model.C_inv = C_inv
 		prob = model.calc_prob_data(data[0])
-		correct_prob = 0.00088726277
+		correct_prob = 0.0127694115
 		self.assertAlmostEqual(prob, correct_prob)
